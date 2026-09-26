@@ -4,19 +4,20 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.*
-import androidx.compose.ui.Modifier
+import com.fleetflow.mobile.ui.screens.AguardandoScreen
+import com.fleetflow.mobile.ui.screens.HomeScreen
 import com.fleetflow.mobile.ui.screens.LoginScreen
+import com.fleetflow.mobile.ui.screens.PerfilScreen
 import com.fleetflow.mobile.ui.screens.WelcomeScreen
 import com.fleetflow.mobile.ui.theme.FleetFlowTheme
 
 sealed class Tela {
     object Boasvindas : Tela()
     object Login : Tela()
+    object Aguardando : Tela()
     object Home : Tela()
+    object Perfil : Tela()
 }
 
 class MainActivity : ComponentActivity() {
@@ -30,9 +31,9 @@ class MainActivity : ComponentActivity() {
                 when (telaAtual) {
                     is Tela.Boasvindas -> WelcomeScreen(onComecarClick = { telaAtual = Tela.Login })
                     is Tela.Login -> LoginScreen(onLoginSuccess = { telaAtual = Tela.Home })
-                    is Tela.Home -> Surface(modifier = Modifier.fillMaxSize()) {
-                        Text("Home (em construção)", modifier = Modifier.fillMaxSize())
-                    }
+                    is Tela.Aguardando -> AguardandoScreen(onSairClick = { telaAtual = Tela.Login })
+                    is Tela.Home -> HomeScreen(onPerfilClick = { telaAtual = Tela.Perfil })
+                    is Tela.Perfil -> PerfilScreen(onSairClick = { telaAtual = Tela.Login })
                 }
             }
         }
