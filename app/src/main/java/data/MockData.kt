@@ -16,3 +16,18 @@ object MockDataService {
         MovimentacaoMensal("Set", 32800.0, 28450.0)
     )
 }
+
+data class Usuario(
+    val id: Int,
+    val nome: String,
+    val email: String,
+    val perfil: String,
+    val status: String // "Aprovado" ou "Pendente"
+)
+
+fun MockDataService.obterUsuarios(): List<Usuario> = listOf(
+    Usuario(1, "João Pedro", "joao@fleetflow.com", "Administrador", "Aprovado"),
+    Usuario(2, "Maria Silva", "maria@fleetflow.com", "Gestor de Frota", "Aprovado"),
+    Usuario(3, "Carlos Souza", "carlos@fleetflow.com", "Financeiro", "Pendente"),
+    Usuario(4, "Ana Costa", "ana@fleetflow.com", "Motorista", "Pendente")
+)

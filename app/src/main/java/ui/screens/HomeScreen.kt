@@ -20,7 +20,7 @@ import com.fleetflow.mobile.data.MockDataService
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
-fun HomeScreen(onPerfilClick: () -> Unit) {
+fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
             modifier = Modifier
@@ -28,8 +28,6 @@ fun HomeScreen(onPerfilClick: () -> Unit) {
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
         ) {
-
-            // Barra superior
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -55,15 +53,14 @@ fun HomeScreen(onPerfilClick: () -> Unit) {
 
             Column(modifier = Modifier.padding(20.dp)) {
 
-                Text("Olá, João Pedro", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Ola, Joao Pedro", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Administrador • FleetFlow",
+                    "Administrador - FleetFlow",
                     color = TextoSecundario,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
                 )
 
-                // Grade 2x2 de KPIs
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     CardKpi("SALDO ATUAL", "R$ 32.850", VerdeEsmeralda, "+8,4%", Modifier.weight(1f))
                     CardKpi("A RECEBER", "R$ 12.400", null, null, Modifier.weight(1f))
@@ -76,7 +73,6 @@ fun HomeScreen(onPerfilClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Cartão de insight
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -85,10 +81,10 @@ fun HomeScreen(onPerfilClick: () -> Unit) {
                         .border(1.dp, AmbarDourado, RoundedCornerShape(12.dp))
                         .padding(16.dp)
                 ) {
-                    Text("💡 INSIGHT", color = AmbarDourado, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                    Text("INSIGHT", color = AmbarDourado, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Suas despesas com combustível subiram 12% em relação ao mês passado.",
+                        "Suas despesas com combustivel subiram 12% em relacao ao mes passado.",
                         color = TextoPrincipal,
                         fontSize = 13.sp
                     )
@@ -96,7 +92,6 @@ fun HomeScreen(onPerfilClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Gráfico
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -121,14 +116,27 @@ fun HomeScreen(onPerfilClick: () -> Unit) {
                 Spacer(modifier = Modifier.height(16.dp))
 
                 Button(
-                    onClick = { /* navegação futura */ },
+                    onClick = { },
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(48.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AmbarDourado)
                 ) {
-                    Text("Ver todas as movimentações", color = Petroleo, fontWeight = FontWeight.SemiBold)
+                    Text("Ver todas as movimentacoes", color = Petroleo, fontWeight = FontWeight.SemiBold)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Button(
+                    onClick = onUsuariosClick,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Petroleo)
+                ) {
+                    Text("Gestao de Usuarios", color = Branco, fontWeight = FontWeight.SemiBold)
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))

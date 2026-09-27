@@ -5,10 +5,12 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
+import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
 import com.fleetflow.mobile.ui.screens.AguardandoScreen
 import com.fleetflow.mobile.ui.screens.HomeScreen
 import com.fleetflow.mobile.ui.screens.LoginScreen
 import com.fleetflow.mobile.ui.screens.PerfilScreen
+import com.fleetflow.mobile.ui.screens.UsuariosScreen
 import com.fleetflow.mobile.ui.screens.WelcomeScreen
 import com.fleetflow.mobile.ui.theme.FleetFlowTheme
 
@@ -18,6 +20,8 @@ sealed class Tela {
     object Aguardando : Tela()
     object Home : Tela()
     object Perfil : Tela()
+    object Usuarios : Tela()
+    object AcessoNegado : Tela()
 }
 
 class MainActivity : ComponentActivity() {
@@ -32,8 +36,13 @@ class MainActivity : ComponentActivity() {
                     is Tela.Boasvindas -> WelcomeScreen(onComecarClick = { telaAtual = Tela.Login })
                     is Tela.Login -> LoginScreen(onLoginSuccess = { telaAtual = Tela.Home })
                     is Tela.Aguardando -> AguardandoScreen(onSairClick = { telaAtual = Tela.Login })
-                    is Tela.Home -> HomeScreen(onPerfilClick = { telaAtual = Tela.Perfil })
+                    is Tela.Home -> HomeScreen(
+                        onPerfilClick = { telaAtual = Tela.Perfil },
+                        onUsuariosClick = { telaAtual = Tela.Usuarios }
+                    )
                     is Tela.Perfil -> PerfilScreen(onSairClick = { telaAtual = Tela.Login })
+                    is Tela.Usuarios -> UsuariosScreen(onVoltarClick = { telaAtual = Tela.Home })
+                    is Tela.AcessoNegado -> AcessoNegadoScreen(onVoltarClick = { telaAtual = Tela.Home })
                 }
             }
         }
