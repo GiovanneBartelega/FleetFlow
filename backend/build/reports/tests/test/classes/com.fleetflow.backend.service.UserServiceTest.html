@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - UserServiceTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>UserServiceTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/com.fleetflow.backend.service.html">com.fleetflow.backend.service</a> &gt; UserServiceTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">4</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">0.009s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="tab-container">
+<ul class="tabLinks">
+<li>
+<a href="#">Tests</a>
+</li>
+<li>
+<a href="#">Standard output</a>
+</li>
+</ul>
+<div class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">concurrent user creations should result in exactly one ADMINISTRATOR()</td>
+<td class="success">0.006s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">existing user should be retrieved and updated()</td>
+<td class="success">0.001s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">first user registered should receive ADMINISTRATOR role()</td>
+<td class="success">0.001s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">second user registered should NOT receive ADMINISTRATOR role()</td>
+<td class="success">0.001s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>2026-10-02T08:46:55.241-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-3] c.fleetflow.backend.service.UserService  : Created new user ID: 57e91252-d9d3-4c51-ad76-e33312b98569, email: user3@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:55.242-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-8] c.fleetflow.backend.service.UserService  : Created new user ID: a88a53b8-46bb-40a0-87a3-84232015cbe2, email: user8@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.242-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-7] c.fleetflow.backend.service.UserService  : Created new user ID: 0baebe4f-f530-4315-af5a-4b895326e0ad, email: user7@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.242-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-6] c.fleetflow.backend.service.UserService  : Created new user ID: 61a97dee-92cb-42bd-9655-4b96080028bb, email: user6@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.243-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-5] c.fleetflow.backend.service.UserService  : Created new user ID: 7f22050d-c55c-4d76-be1e-3f3990f480dd, email: user5@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.243-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-4] c.fleetflow.backend.service.UserService  : Created new user ID: 02d9b24b-64ca-468a-b443-1cd2ed372604, email: user4@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.243-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-1] c.fleetflow.backend.service.UserService  : Created new user ID: f7c38560-67b4-4296-85c6-76610598c103, email: user1@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.244-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-2] c.fleetflow.backend.service.UserService  : Created new user ID: ffe58abf-e2a1-46e7-9aa9-66f499d4eaa1, email: user2@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.244-03:00  INFO 17868 --- [fleetflow-backend] [ool-2-thread-10] c.fleetflow.backend.service.UserService  : Created new user ID: dc7a9d16-359e-4e34-9782-804eac33c3b8, email: user10@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.244-03:00  INFO 17868 --- [fleetflow-backend] [pool-2-thread-9] c.fleetflow.backend.service.UserService  : Created new user ID: 1f8b2c12-a9d3-4139-b680-d38d40cdc06d, email: user9@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.247-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: fef52344-f50f-4481-a2f2-5a54012bba9d, email: admin@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:55.247-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: 36b86b64-cbae-47a2-9882-9ec8f6b68cc7, email: driver@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.249-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: 22d59b5f-9c50-492e-8fbc-10a13314bfaf, email: admin@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:55.250-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: e845b73a-a058-4931-9d50-6abad5bac98b, email: old@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="https://www.gradle.org">Gradle 8.13</a> at 2 de out. de 2026 08:46:55</p>
+</div>
+</div>
+</body>
+</html>

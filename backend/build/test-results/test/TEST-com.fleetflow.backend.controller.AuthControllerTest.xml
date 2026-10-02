@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.fleetflow.backend.controller.AuthControllerTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-02T11:46:52.234Z" hostname="DESKTOP-RC3H1FC" time="2.669">
+  <properties/>
+  <testcase name="should fail validation when idToken is blank()" classname="com.fleetflow.backend.controller.AuthControllerTest" time="1.991"/>
+  <testcase name="should perform Google login and return JWT tokens and user details()" classname="com.fleetflow.backend.controller.AuthControllerTest" time="0.676"/>
+  <system-out><![CDATA[Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+08:46:44.626 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.fleetflow.backend.controller.AuthControllerTest]: AuthControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+08:46:44.901 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.fleetflow.backend.FleetFlowApplication for test class com.fleetflow.backend.controller.AuthControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.3)
+
+2026-10-02T08:46:45.839-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.controller.AuthControllerTest      : Starting AuthControllerTest using Java 17.0.12 with PID 17868 (started by Bruna in C:\Users\Bruna\Documents\FleetFlow-main\backend)
+2026-10-02T08:46:45.841-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.controller.AuthControllerTest      : No active profile set, falling back to 1 default profile: "default"
+2026-10-02T08:46:49.206-03:00  WARN 17868 --- [fleetflow-backend] [    Test worker] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 7cb5c6d6-f5ab-4774-947d-e2ee8e334693
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-10-02T08:46:49.290-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-10-02T08:46:50.716-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoints beneath base path '/actuator'
+2026-10-02T08:46:52.014-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-02T08:46:52.014-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-02T08:46:52.016-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 2 ms
+2026-10-02T08:46:52.110-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.controller.AuthControllerTest      : Started AuthControllerTest in 6.926 seconds (process running for 9.284)
+2026-10-02T08:46:54.254-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:user-1:user@fleetflow.com:João Admin
+2026-10-02T08:46:54.260-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: 8eb68d8b-0d31-49a9-8cb8-32dc0e0683a3, email: user@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:54.480-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: f1ae97ec-a464-4d19-8562-b24645fb02b3 for user ID: 8eb68d8b-0d31-49a9-8cb8-32dc0e0683a3
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

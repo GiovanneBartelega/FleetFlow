@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"/>
+<meta http-equiv="x-ua-compatible" content="IE=edge"/>
+<title>Test results - AuthControllerTest</title>
+<link href="../css/base-style.css" rel="stylesheet" type="text/css"/>
+<link href="../css/style.css" rel="stylesheet" type="text/css"/>
+<script src="../js/report.js" type="text/javascript"></script>
+</head>
+<body>
+<div id="content">
+<h1>AuthControllerTest</h1>
+<div class="breadcrumbs">
+<a href="../index.html">all</a> &gt; 
+<a href="../packages/com.fleetflow.backend.controller.html">com.fleetflow.backend.controller</a> &gt; AuthControllerTest</div>
+<div id="summary">
+<table>
+<tr>
+<td>
+<div class="summaryGroup">
+<table>
+<tr>
+<td>
+<div class="infoBox" id="tests">
+<div class="counter">2</div>
+<p>tests</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="failures">
+<div class="counter">0</div>
+<p>failures</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="ignored">
+<div class="counter">0</div>
+<p>ignored</p>
+</div>
+</td>
+<td>
+<div class="infoBox" id="duration">
+<div class="counter">2.667s</div>
+<p>duration</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+</td>
+<td>
+<div class="infoBox success" id="successRate">
+<div class="percent">100%</div>
+<p>successful</p>
+</div>
+</td>
+</tr>
+</table>
+</div>
+<div class="tab-container">
+<ul class="tabLinks">
+<li>
+<a href="#">Tests</a>
+</li>
+<li>
+<a href="#">Standard output</a>
+</li>
+</ul>
+<div class="tab">
+<h2>Tests</h2>
+<table>
+<thead>
+<tr>
+<th>Test</th>
+<th>Duration</th>
+<th>Result</th>
+</tr>
+</thead>
+<tr>
+<td class="success">should fail validation when idToken is blank()</td>
+<td class="success">1.991s</td>
+<td class="success">passed</td>
+</tr>
+<tr>
+<td class="success">should perform Google login and return JWT tokens and user details()</td>
+<td class="success">0.676s</td>
+<td class="success">passed</td>
+</tr>
+</table>
+</div>
+<div class="tab">
+<h2>Standard output</h2>
+<span class="code">
+<pre>Standard Commons Logging discovery in action with spring-jcl: please remove commons-logging.jar from classpath in order to avoid potential conflicts
+08:46:44.626 [Test worker] INFO org.springframework.test.context.support.AnnotationConfigContextLoaderUtils -- Could not detect default configuration classes for test class [com.fleetflow.backend.controller.AuthControllerTest]: AuthControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+08:46:44.901 [Test worker] INFO org.springframework.boot.test.context.SpringBootTestContextBootstrapper -- Found @SpringBootConfiguration com.fleetflow.backend.FleetFlowApplication for test class com.fleetflow.backend.controller.AuthControllerTest
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+
+ :: Spring Boot ::                (v3.4.3)
+
+2026-10-02T08:46:45.839-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.controller.AuthControllerTest      : Starting AuthControllerTest using Java 17.0.12 with PID 17868 (started by Bruna in C:\Users\Bruna\Documents\FleetFlow-main\backend)
+2026-10-02T08:46:45.841-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.controller.AuthControllerTest      : No active profile set, falling back to 1 default profile: &quot;default&quot;
+2026-10-02T08:46:49.206-03:00  WARN 17868 --- [fleetflow-backend] [    Test worker] .s.s.UserDetailsServiceAutoConfiguration : 
+
+Using generated security password: 7cb5c6d6-f5ab-4774-947d-e2ee8e334693
+
+This generated password is for development use only. Your security configuration must be updated before running your application in production.
+
+2026-10-02T08:46:49.290-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] r$InitializeUserDetailsManagerConfigurer : Global AuthenticationManager configured with UserDetailsService bean with name inMemoryUserDetailsManager
+2026-10-02T08:46:50.716-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.b.a.e.web.EndpointLinksResolver      : Exposing 2 endpoints beneath base path '/actuator'
+2026-10-02T08:46:52.014-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.b.t.m.w.SpringBootMockServletContext : Initializing Spring TestDispatcherServlet ''
+2026-10-02T08:46:52.014-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Initializing Servlet ''
+2026-10-02T08:46:52.016-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] o.s.t.web.servlet.TestDispatcherServlet  : Completed initialization in 2 ms
+2026-10-02T08:46:52.110-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.controller.AuthControllerTest      : Started AuthControllerTest in 6.926 seconds (process running for 9.284)
+2026-10-02T08:46:54.254-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:user-1:user@fleetflow.com:João Admin
+2026-10-02T08:46:54.260-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: 8eb68d8b-0d31-49a9-8cb8-32dc0e0683a3, email: user@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:54.480-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: f1ae97ec-a464-4d19-8562-b24645fb02b3 for user ID: 8eb68d8b-0d31-49a9-8cb8-32dc0e0683a3
+</pre>
+</span>
+</div>
+</div>
+<div id="footer">
+<p>
+<div>
+<label class="hidden" id="label-for-line-wrapping-toggle" for="line-wrapping-toggle">Wrap lines
+<input id="line-wrapping-toggle" type="checkbox" autocomplete="off"/>
+</label>
+</div>Generated by 
+<a href="https://www.gradle.org">Gradle 8.13</a> at 2 de out. de 2026 08:46:55</p>
+</div>
+</div>
+</body>
+</html>

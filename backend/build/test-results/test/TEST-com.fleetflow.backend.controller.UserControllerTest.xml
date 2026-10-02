@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.fleetflow.backend.controller.UserControllerTest" tests="4" skipped="0" failures="0" errors="0" timestamp="2026-10-02T11:46:54.924Z" hostname="DESKTOP-RC3H1FC" time="0.275">
+  <properties/>
+  <testcase name="should get authenticated user details with valid JWT()" classname="com.fleetflow.backend.controller.UserControllerTest" time="0.124"/>
+  <testcase name="driver should receive 403 Forbidden when trying to list users()" classname="com.fleetflow.backend.controller.UserControllerTest" time="0.038"/>
+  <testcase name="admin should be able to list users, approve pending user, and update role()" classname="com.fleetflow.backend.controller.UserControllerTest" time="0.09"/>
+  <testcase name="should return 401 Unauthorized when Authorization header is missing()" classname="com.fleetflow.backend.controller.UserControllerTest" time="0.018"/>
+  <system-out><![CDATA[2026-10-02T08:46:54.912-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] t.c.s.AnnotationConfigContextLoaderUtils : Could not detect default configuration classes for test class [com.fleetflow.backend.controller.UserControllerTest]: UserControllerTest does not declare any static, non-private, non-final, nested classes annotated with @Configuration.
+2026-10-02T08:46:54.918-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] .b.t.c.SpringBootTestContextBootstrapper : Found @SpringBootConfiguration com.fleetflow.backend.FleetFlowApplication for test class com.fleetflow.backend.controller.UserControllerTest
+2026-10-02T08:46:54.934-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:user-me:pedro@fleetflow.com:Pedro Gestor
+2026-10-02T08:46:54.935-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: b148e4e8-f7b3-4cdb-99d3-6888d80f2eb2, email: pedro@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:54.936-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: 3f978dee-b11d-4fad-8346-5674177199bd for user ID: b148e4e8-f7b3-4cdb-99d3-6888d80f2eb2
+2026-10-02T08:46:55.060-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:admin:admin@fleetflow.com:Admin
+2026-10-02T08:46:55.061-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: d935af2f-6006-4538-8b6c-1debd48cf59a, email: admin@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:55.062-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: ecb07b70-8c3c-432b-bb77-9657fd78e0ba for user ID: d935af2f-6006-4538-8b6c-1debd48cf59a
+2026-10-02T08:46:55.069-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:driver:driver@fleetflow.com:Driver
+2026-10-02T08:46:55.069-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: d92d33f4-66ce-480a-85f4-5bd09445cc01, email: driver@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.070-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: 157b3c63-221e-481e-b315-339beee01835 for user ID: d92d33f4-66ce-480a-85f4-5bd09445cc01
+2026-10-02T08:46:55.081-03:00  WARN 17868 --- [fleetflow-backend] [    Test worker] c.f.b.exception.GlobalExceptionHandler   : FleetFlowException [2a535cb4-fea2-4db2-a831-20f794d09fa1]: Acesso negado para listar usuários.
+2026-10-02T08:46:55.099-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:admin:admin@fleetflow.com:Admin
+2026-10-02T08:46:55.100-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: db70b38c-aeb0-48a5-84a3-1306084bd555, email: admin@fleetflow.com, role: ADMINISTRATOR, status: ACTIVE (isFirstUser: true)
+2026-10-02T08:46:55.101-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: 580f2799-7cb3-425e-9de2-b6a24626ad24 for user ID: db70b38c-aeb0-48a5-84a3-1306084bd555
+2026-10-02T08:46:55.108-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.b.s.GoogleTokenVerifierService       : Using mock/development Google ID Token verification for token: mock-id-token:driver2:driver2@fleetflow.com:Driver 2
+2026-10-02T08:46:55.109-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : Created new user ID: fffcefaa-b93e-49f5-861e-70c6ec68bb81, email: driver2@fleetflow.com, role: DRIVER, status: PENDING (isFirstUser: false)
+2026-10-02T08:46:55.110-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.f.backend.service.RefreshTokenService  : Created refresh token ID: b743f06f-1818-4a59-9e51-0f7ca06fc69b for user ID: fffcefaa-b93e-49f5-861e-70c6ec68bb81
+2026-10-02T08:46:55.146-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : User ID: fffcefaa-b93e-49f5-861e-70c6ec68bb81 approved by operator ID: db70b38c-aeb0-48a5-84a3-1306084bd555
+2026-10-02T08:46:55.173-03:00  INFO 17868 --- [fleetflow-backend] [    Test worker] c.fleetflow.backend.service.UserService  : User ID: fffcefaa-b93e-49f5-861e-70c6ec68bb81 role updated to: FINANCIAL by operator ID: db70b38c-aeb0-48a5-84a3-1306084bd555
+]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>
