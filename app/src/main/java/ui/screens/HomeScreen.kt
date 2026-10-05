@@ -13,24 +13,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.data.MockDataService
-import com.fleetflow.mobile.data.model.UserResponseDto
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
-fun HomeScreen(
-    user: UserResponseDto? = null,
-    onPerfilClick: () -> Unit,
-    onUsuariosClick: () -> Unit
-) {
-    val nomeExibicao = user?.name ?: "Joao Pedro"
-    val iniciais = nomeExibicao.split(" ").take(2).mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("")
-    val perfilTexto = if (user?.role == "ADMINISTRATOR") "Administrador" else user?.role ?: "Administrador"
-
+fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
             modifier = Modifier
@@ -57,15 +47,15 @@ fun HomeScreen(
                         .clickable { onPerfilClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(iniciais.ifEmpty { "JP" }, color = Petroleo, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text("JP", color = Petroleo, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
 
-                Text("Ola, $nomeExibicao", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Ola, Joao Pedro", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "$perfilTexto - FleetFlow",
+                    "Administrador - FleetFlow",
                     color = TextoSecundario,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
@@ -159,7 +149,7 @@ fun HomeScreen(
 private fun CardKpi(
     titulo: String,
     valor: String,
-    corVariacao: Color?,
+    corVariacao: androidx.compose.ui.graphics.Color?,
     variacao: String?,
     modifier: Modifier = Modifier
 ) {
@@ -180,7 +170,7 @@ private fun CardKpi(
 }
 
 @Composable
-private fun LegendaCor(cor: Color, texto: String) {
+private fun LegendaCor(cor: androidx.compose.ui.graphics.Color, texto: String) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         Box(
             modifier = Modifier
