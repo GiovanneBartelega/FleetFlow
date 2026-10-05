@@ -20,7 +20,12 @@ import com.fleetflow.mobile.data.MockDataService
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
-fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+fun HomeScreen(
+    onPerfilClick: () -> Unit,
+    onUsuariosClick: () -> Unit,
+    onCategoriasClick: () -> Unit,
+    onFormasPagamentoClick: () -> Unit
+) {
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
             modifier = Modifier
@@ -139,7 +144,27 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
                     Text("Gestao de Usuarios", color = Branco, fontWeight = FontWeight.SemiBold)
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Button(
+                        onClick = onCategoriasClick,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AmbarDourado)
+                    ) {
+                        Text("Categorias", color = Petroleo, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    }
+
+                    Button(
+                        onClick = onFormasPagamentoClick,
+                        modifier = Modifier.weight(1f).height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = AmbarDourado)
+                    ) {
+                        Text("Formas Pgto.", color = Petroleo, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+                    }
+                }
             }
         }
     }

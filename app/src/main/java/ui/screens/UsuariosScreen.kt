@@ -1,5 +1,6 @@
 package com.fleetflow.mobile.ui.screens
 
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -32,17 +33,15 @@ fun UsuariosScreen(onVoltarClick: () -> Unit) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(Petroleo)
-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+                    .statusBarsPadding()
+                    .padding(horizontal = 8.dp, vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    "←",
-                    color = Branco,
-                    fontSize = 22.sp,
-                    modifier = Modifier.clickable { onVoltarClick() }
-                )
-                Spacer(modifier = Modifier.width(16.dp))
-                Text("Gestão de Usuários", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                IconButton(onClick = onVoltarClick) {
+                    Text("←", color = Branco, fontSize = 22.sp)
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("GESTAO DE USUARIOS", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             }
         }
     ) { padding ->

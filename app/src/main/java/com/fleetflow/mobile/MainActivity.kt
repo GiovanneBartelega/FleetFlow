@@ -7,6 +7,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
 import com.fleetflow.mobile.ui.screens.AguardandoScreen
+import com.fleetflow.mobile.ui.screens.CategoriasScreen
+import com.fleetflow.mobile.ui.screens.FormasPagamentoScreen
 import com.fleetflow.mobile.ui.screens.HomeScreen
 import com.fleetflow.mobile.ui.screens.LoginScreen
 import com.fleetflow.mobile.ui.screens.PerfilScreen
@@ -22,6 +24,8 @@ sealed class Tela {
     object Perfil : Tela()
     object Usuarios : Tela()
     object AcessoNegado : Tela()
+    object Categorias : Tela()
+    object FormasPagamento : Tela()
 }
 
 class MainActivity : ComponentActivity() {
@@ -38,11 +42,15 @@ class MainActivity : ComponentActivity() {
                     is Tela.Aguardando -> AguardandoScreen(onSairClick = { telaAtual = Tela.Login })
                     is Tela.Home -> HomeScreen(
                         onPerfilClick = { telaAtual = Tela.Perfil },
-                        onUsuariosClick = { telaAtual = Tela.Usuarios }
+                        onUsuariosClick = { telaAtual = Tela.Usuarios },
+                        onCategoriasClick = { telaAtual = Tela.Categorias },
+                        onFormasPagamentoClick = { telaAtual = Tela.FormasPagamento }
                     )
                     is Tela.Perfil -> PerfilScreen(onSairClick = { telaAtual = Tela.Login })
                     is Tela.Usuarios -> UsuariosScreen(onVoltarClick = { telaAtual = Tela.Home })
                     is Tela.AcessoNegado -> AcessoNegadoScreen(onVoltarClick = { telaAtual = Tela.Home })
+                    is Tela.Categorias -> CategoriasScreen(onVoltarClick = { telaAtual = Tela.Home })
+                    is Tela.FormasPagamento -> FormasPagamentoScreen(onVoltarClick = { telaAtual = Tela.Home })
                 }
             }
         }

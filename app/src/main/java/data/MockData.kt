@@ -1,5 +1,38 @@
 package com.fleetflow.mobile.data
 
+import androidx.compose.runtime.mutableStateListOf
+
+data class Categoria(
+    val id: Int,
+    var nome: String,
+    val tipo: String, // "ENTRADA" ou "SAIDA"
+    var ativo: Boolean
+)
+
+data class FormaPagamento(
+    val id: Int,
+    var nome: String,
+    var ativo: Boolean
+)
+
+object CategoriasRepo {
+    val lista = mutableStateListOf(
+        Categoria(1, "Fretes", "ENTRADA", true),
+        Categoria(2, "Combustível", "SAIDA", true),
+        Categoria(3, "Pedágio", "SAIDA", true),
+        Categoria(4, "Salário Motorista", "SAIDA", true),
+        Categoria(5, "Manutenção", "SAIDA", true)
+    )
+}
+
+object FormasPagamentoRepo {
+    val lista = mutableStateListOf(
+        FormaPagamento(1, "PIX", true),
+        FormaPagamento(2, "Boleto", true),
+        FormaPagamento(3, "Cartão Itaú", true),
+        FormaPagamento(4, "Cartão Sicoob", true)
+    )
+}
 data class MovimentacaoMensal(
     val mesAbreviado: String,
     val receita: Double,
