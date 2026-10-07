@@ -1,0 +1,17 @@
+# Android / Gradle
+.gradle/
+build/
+local.properties
+*.iml
+.idea/
+.kotlin/
+captures/
+.externalNativeBuild
+.cxx
+.DS_Store
+
+# Backend
+backend/.env
+
+# Arquivos gerados por ferramentas de IA
+.artifacts/

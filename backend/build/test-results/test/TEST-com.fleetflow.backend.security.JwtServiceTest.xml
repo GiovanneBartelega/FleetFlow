@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.fleetflow.backend.security.JwtServiceTest" tests="2" skipped="0" failures="0" errors="0" timestamp="2026-10-02T11:46:55.202Z" hostname="DESKTOP-RC3H1FC" time="0.02">
-  <properties/>
-  <testcase name="should throw InvalidTokenException for malformed token()" classname="com.fleetflow.backend.security.JwtServiceTest" time="0.011"/>
-  <testcase name="should generate valid JWT access token and extract user ID()" classname="com.fleetflow.backend.security.JwtServiceTest" time="0.008"/>
-  <system-out><![CDATA[]]></system-out>
-  <system-err><![CDATA[]]></system-err>
-</testsuite>

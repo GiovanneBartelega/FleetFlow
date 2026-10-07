@@ -1,7 +1,0 @@
-- `[ ]` Implement backend authorization service methods (getAllUsers, approveUser, updateUserRole) with RBAC rules
-- `[ ]` Implement backend endpoints in UserController (`GET /api/users`, `PATCH /api/users/{id}/approve`, `PATCH /api/users/{id}/role`) with 403 Forbidden enforcement
-- `[ ]` Add backend unit and integration tests for RBAC, 403 handling, and user management
-- `[ ]` Create Android AuthorizationManager / PermissionPolicy for centralized role checking
-- `[ ]` Update Android UserApi and repository to support user listing, approval, and role updating
-- `[ ]` Update UsuariosScreen in Android to integrate with backend APIs and respect permissions
-- `[ ]` Verify build and test execution for both backend and Android
