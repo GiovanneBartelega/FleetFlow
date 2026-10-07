@@ -12,14 +12,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fleetflow.mobile.data.PerfilUsuario
 import com.fleetflow.mobile.ui.theme.*
 import kotlinx.coroutines.delay
 
 @Composable
-fun LoginScreen(onLoginSuccess: () -> Unit) {
+fun LoginScreen(
+    onLoginSuccess: (PerfilUsuario) -> Unit
+) {
     var carregando by remember { mutableStateOf(false) }
 
-    Scaffold(containerColor = BackgroundTela) { padding ->
+    Scaffold(
+        containerColor = BackgroundTela
+    ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -28,6 +34,7 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
+
             Text(
                 text = "FleetFlow",
                 fontSize = 28.sp,
@@ -47,23 +54,71 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
 
             Spacer(modifier = Modifier.height(40.dp))
 
+            // LOGIN ADMINISTRADOR
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(48.dp)
-                    .border(width = 2.dp, color = Petroleo, shape = RoundedCornerShape(12.dp))
-                    .clickable(enabled = !carregando) { carregando = true },
+                    .border(
+                        width = 2.dp,
+                        color = Petroleo,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .clickable(enabled = !carregando) {
+                        carregando = true
+                    },
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("G", color = AzulGoogle, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+
+                Text(
+                    "G",
+                    color = AzulGoogle,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 20.sp
+                )
+
                 Spacer(modifier = Modifier.width(12.dp))
-                Text("Entrar com Google", color = Petroleo, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+
+                Text(
+                    "Entrar com Google",
+                    color = Petroleo,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
             }
 
             if (carregando) {
+
                 Spacer(modifier = Modifier.height(16.dp))
-                CircularProgressIndicator(color = AmbarDourado)
+
+                CircularProgressIndicator(
+                    color = AmbarDourado
+                )
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+
+            // LOGIN MOTORISTA - SIMULAÇÃO
+            Button(
+                onClick = {
+                    onLoginSuccess(PerfilUsuario.MOTORISTA)
+                },
+                enabled = !carregando,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Petroleo
+                )
+            ) {
+
+                Text(
+                    "Entrar como Motorista",
+                    color = Branco,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
 
             Spacer(modifier = Modifier.height(32.dp))
@@ -77,10 +132,16 @@ fun LoginScreen(onLoginSuccess: () -> Unit) {
         }
     }
 
+    // Login Google simulado = Administrador
     LaunchedEffect(carregando) {
+
         if (carregando) {
+
             delay(600)
-            onLoginSuccess()
+
+            onLoginSuccess(
+                PerfilUsuario.ADMINISTRADOR
+            )
         }
     }
 }

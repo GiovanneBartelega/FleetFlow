@@ -14,11 +14,20 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.fleetflow.mobile.data.PerfilUsuario
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
-fun PerfilScreen(onSairClick: () -> Unit) {
-    Scaffold(containerColor = BackgroundTela) { padding ->
+fun PerfilScreen(
+    perfil: PerfilUsuario,
+    onSairClick: () -> Unit
+) {
+    val isAdministrador = perfil == PerfilUsuario.ADMINISTRADOR
+
+    Scaffold(
+        containerColor = BackgroundTela
+    ) { padding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -36,13 +45,36 @@ fun PerfilScreen(onSairClick: () -> Unit) {
                     .background(AmbarDourado),
                 contentAlignment = Alignment.Center
             ) {
-                Text("JP", color = Petroleo, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(
+                    text = if (isAdministrador) "JP" else "MT",
+                    color = Petroleo,
+                    fontSize = 28.sp,
+                    fontWeight = FontWeight.Bold
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            Text("Nome do Usuário", color = TextoPrincipal, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-            Text("Administrador", color = TextoSecundario, fontSize = 14.sp)
+            Text(
+                text = if (isAdministrador) {
+                    "Joao Pedro"
+                } else {
+                    "Motorista"
+                },
+                color = TextoPrincipal,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+
+            Text(
+                text = if (isAdministrador) {
+                    "Administrador"
+                } else {
+                    "Motorista"
+                },
+                color = TextoSecundario,
+                fontSize = 14.sp
+            )
 
             Spacer(modifier = Modifier.weight(1f))
 
@@ -52,11 +84,18 @@ fun PerfilScreen(onSairClick: () -> Unit) {
                     .height(52.dp)
                     .clip(RoundedCornerShape(12.dp))
                     .background(Vermelho)
-                    .clickable { onSairClick() },
+                    .clickable {
+                        onSairClick()
+                    },
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("Sair da conta", color = Branco, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(
+                    "Sair da conta",
+                    color = Branco,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp
+                )
             }
 
             Spacer(modifier = Modifier.height(24.dp))
