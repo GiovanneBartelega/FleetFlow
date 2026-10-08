@@ -64,3 +64,20 @@ fun MockDataService.obterUsuarios(): List<Usuario> = listOf(
     Usuario(3, "Carlos Souza", "carlos@fleetflow.com", "Financeiro", "Pendente"),
     Usuario(4, "Ana Costa", "ana@fleetflow.com", "Motorista", "Pendente")
 )
+
+data class Movimentacao(
+    val id: Int,
+    val tipo: String, // "ENTRADA" ou "SAIDA"
+    val valor: Double,
+    val descricao: String,
+    val categoriaId: Int,
+    val formaPagamentoId: Int,
+    val dataVencimento: String,
+    var status: String, // "PENDENTE" ou "PAGO"
+    var dataPagamento: String? = null,
+    var comprovante: String? = null
+)
+
+object MovimentacoesRepo {
+    val lista = mutableStateListOf<Movimentacao>()
+}

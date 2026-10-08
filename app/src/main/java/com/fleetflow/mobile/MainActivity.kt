@@ -15,6 +15,7 @@ import com.fleetflow.mobile.ui.screens.LoginScreen
 import com.fleetflow.mobile.ui.screens.PerfilScreen
 import com.fleetflow.mobile.ui.screens.UsuariosScreen
 import com.fleetflow.mobile.ui.screens.WelcomeScreen
+import com.fleetflow.mobile.ui.screens.MovimentacaoScreen
 import com.fleetflow.mobile.ui.theme.FleetFlowTheme
 
 sealed class Tela {
@@ -27,6 +28,7 @@ sealed class Tela {
     object AcessoNegado : Tela()
     object Categorias : Tela()
     object FormasPagamento : Tela()
+    object Movimentacao : Tela()
 }
 
 class MainActivity : ComponentActivity() {
@@ -109,6 +111,14 @@ class MainActivity : ComponentActivity() {
                                     } else {
                                         telaAtual = Tela.AcessoNegado
                                     }
+                                },
+
+                                onMovimentacaoClick = {
+                                    if (perfil == PerfilUsuario.ADMINISTRADOR) {
+                                        telaAtual = Tela.Movimentacao
+                                    } else {
+                                        telaAtual = Tela.AcessoNegado
+                                    }
                                 }
                             )
 
@@ -130,7 +140,6 @@ class MainActivity : ComponentActivity() {
                             )
 
                         } else {
-
                             telaAtual = Tela.Login
                         }
                     }
@@ -146,7 +155,6 @@ class MainActivity : ComponentActivity() {
                             )
 
                         } else {
-
                             telaAtual = Tela.AcessoNegado
                         }
                     }
@@ -162,7 +170,6 @@ class MainActivity : ComponentActivity() {
                             )
 
                         } else {
-
                             telaAtual = Tela.AcessoNegado
                         }
                     }
@@ -178,7 +185,22 @@ class MainActivity : ComponentActivity() {
                             )
 
                         } else {
+                            telaAtual = Tela.AcessoNegado
+                        }
+                    }
 
+                    is Tela.Movimentacao -> {
+
+                        if (perfilUsuario == PerfilUsuario.ADMINISTRADOR) {
+
+                            MovimentacaoScreen(
+                                onVoltarClick = {
+                                    println("CLIQUEI EM VOLTAR")
+                                    telaAtual = Tela.Home
+                                }
+                            )
+
+                        } else {
                             telaAtual = Tela.AcessoNegado
                         }
                     }

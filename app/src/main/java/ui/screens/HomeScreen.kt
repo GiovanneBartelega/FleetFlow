@@ -26,7 +26,8 @@ fun HomeScreen(
     onPerfilClick: () -> Unit,
     onUsuariosClick: () -> Unit,
     onCategoriasClick: () -> Unit,
-    onFormasPagamentoClick: () -> Unit
+    onFormasPagamentoClick: () -> Unit,
+    onMovimentacaoClick: () -> Unit
 ) {
     Scaffold(containerColor = BackgroundTela) { padding ->
 
@@ -231,7 +232,28 @@ fun HomeScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // MOVIMENTAÇÕES
+
+                    // NOVA MOVIMENTAÇÃO
+                    Button(
+                        onClick = onMovimentacaoClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = AmbarDourado
+                        )
+                    ) {
+                        Text(
+                            "Nova movimentação financeira",
+                            color = Petroleo,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+// MOVIMENTAÇÕES
                     Button(
                         onClick = { },
                         modifier = Modifier
@@ -243,7 +265,7 @@ fun HomeScreen(
                         )
                     ) {
                         Text(
-                            "Ver todas as movimentacoes",
+                            "Ver todas as movimentações",
                             color = Petroleo,
                             fontWeight = FontWeight.SemiBold
                         )
