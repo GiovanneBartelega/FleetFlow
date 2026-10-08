@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun UsuariosScreen(
-    user: UserResponseDto?,
+    user: UserResponseDto? = null,
     onVoltarClick: () -> Unit
 ) {
     val context = LocalContext.current
