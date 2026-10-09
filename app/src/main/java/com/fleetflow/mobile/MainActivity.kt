@@ -9,13 +9,14 @@ import com.fleetflow.mobile.data.PerfilUsuario
 import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
 import com.fleetflow.mobile.ui.screens.AguardandoScreen
 import com.fleetflow.mobile.ui.screens.CategoriasScreen
+import com.fleetflow.mobile.ui.screens.FinanciamentoScreen
 import com.fleetflow.mobile.ui.screens.FormasPagamentoScreen
 import com.fleetflow.mobile.ui.screens.HomeScreen
 import com.fleetflow.mobile.ui.screens.LoginScreen
+import com.fleetflow.mobile.ui.screens.MovimentacaoScreen
 import com.fleetflow.mobile.ui.screens.PerfilScreen
 import com.fleetflow.mobile.ui.screens.UsuariosScreen
 import com.fleetflow.mobile.ui.screens.WelcomeScreen
-import com.fleetflow.mobile.ui.screens.MovimentacaoScreen
 import com.fleetflow.mobile.ui.theme.FleetFlowTheme
 
 sealed class Tela {
@@ -29,6 +30,7 @@ sealed class Tela {
     object Categorias : Tela()
     object FormasPagamento : Tela()
     object Movimentacao : Tela()
+    object Financiamento : Tela()
 }
 
 class MainActivity : ComponentActivity() {
@@ -44,7 +46,7 @@ class MainActivity : ComponentActivity() {
                     mutableStateOf<Tela>(Tela.Boasvindas)
                 }
 
-                var perfilUsuario by remember {
+                var perfilAtual by remember {
                     mutableStateOf<PerfilUsuario?>(null)
                 }
 
@@ -61,7 +63,7 @@ class MainActivity : ComponentActivity() {
                     is Tela.Login -> {
                         LoginScreen(
                             onLoginSuccess = { perfil ->
-                                perfilUsuario = perfil
+                                perfilAtual = perfil
                                 telaAtual = Tela.Home
                             }
                         )
@@ -70,18 +72,18 @@ class MainActivity : ComponentActivity() {
                     is Tela.Aguardando -> {
                         AguardandoScreen(
                             onSairClick = {
-                                perfilUsuario = null
+                                perfilAtual = null
                                 telaAtual = Tela.Login
                             }
                         )
                     }
 
                     is Tela.Home -> {
+                        val perfil = perfilAtual
 
-                        val perfil = perfilUsuario
-
-                        if (perfil != null) {
-
+                        if (perfil == null) {
+                            telaAtual = Tela.Login
+                        } else {
                             HomeScreen(
                                 perfil = perfil,
 
@@ -90,116 +92,76 @@ class MainActivity : ComponentActivity() {
                                 },
 
                                 onUsuariosClick = {
-                                    if (perfil == PerfilUsuario.ADMINISTRADOR) {
-                                        telaAtual = Tela.Usuarios
-                                    } else {
-                                        telaAtual = Tela.AcessoNegado
-                                    }
+                                    telaAtual =
+                                        if (perfil == PerfilUsuario.ADMINISTRADOR) {
+                                            Tela.Usuarios
+                                        } else {
+                                            Tela.AcessoNegado
+                                        }
                                 },
 
                                 onCategoriasClick = {
-                                    if (perfil == PerfilUsuario.ADMINISTRADOR) {
-                                        telaAtual = Tela.Categorias
-                                    } else {
-                                        telaAtual = Tela.AcessoNegado
-                                    }
+                                    telaAtual =
+                                        if (perfil == PerfilUsuario.ADMINISTRADOR) {
+                                            Tela.Categorias
+                                        } else {
+                                            Tela.AcessoNegado
+                                        }
                                 },
 
                                 onFormasPagamentoClick = {
-                                    if (perfil == PerfilUsuario.ADMINISTRADOR) {
-                                        telaAtual = Tela.FormasPagamento
-                                    } else {
-                                        telaAtual = Tela.AcessoNegado
-                                    }
+                                    telaAtual =
+                                        if (perfil == PerfilUsuario.ADMINISTRADOR) {
+                                            Tela.FormasPagamento
+                                        } else {
+                                            Tela.AcessoNegado
+                                        }
                                 },
 
                                 onMovimentacaoClick = {
-                                    if (perfil == PerfilUsuario.ADMINISTRADOR) {
-                                        telaAtual = Tela.Movimentacao
-                                    } else {
-                                        telaAtual = Tela.AcessoNegado
-                                    }
+                                    telaAtual =
+                                        if (perfil == PerfilUsuario.ADMINISTRADOR) {
+                                            Tela.Movimentacao
+                                        } else {
+                                            Tela.AcessoNegado
+                                        }
+                                },
+
+                                onFinanciamentoClick = {
+                                    telaAtual =
+                                        if (perfil == PerfilUsuario.ADMINISTRADOR) {
+                                            Tela.Financiamento
+                                        } else {
+                                            Tela.AcessoNegado
+                                        }
                                 }
                             )
-
-                        } else {
-                            telaAtual = Tela.Login
                         }
                     }
 
                     is Tela.Perfil -> {
+                        val perfil = perfilAtual
 
-                        if (perfilUsuario != null) {
-
+                        if (perfil == null) {
+                            telaAtual = Tela.Login
+                        } else {
                             PerfilScreen(
-                                perfil = perfilUsuario!!,
+                                perfil = perfil,
                                 onSairClick = {
-                                    perfilUsuario = null
+                                    perfilAtual = null
                                     telaAtual = Tela.Login
                                 }
                             )
-
-                        } else {
-                            telaAtual = Tela.Login
                         }
                     }
 
                     is Tela.Usuarios -> {
-
-                        if (perfilUsuario == PerfilUsuario.ADMINISTRADOR) {
-
+                        if (perfilAtual == PerfilUsuario.ADMINISTRADOR) {
                             UsuariosScreen(
                                 onVoltarClick = {
                                     telaAtual = Tela.Home
                                 }
                             )
-
-                        } else {
-                            telaAtual = Tela.AcessoNegado
-                        }
-                    }
-
-                    is Tela.Categorias -> {
-
-                        if (perfilUsuario == PerfilUsuario.ADMINISTRADOR) {
-
-                            CategoriasScreen(
-                                onVoltarClick = {
-                                    telaAtual = Tela.Home
-                                }
-                            )
-
-                        } else {
-                            telaAtual = Tela.AcessoNegado
-                        }
-                    }
-
-                    is Tela.FormasPagamento -> {
-
-                        if (perfilUsuario == PerfilUsuario.ADMINISTRADOR) {
-
-                            FormasPagamentoScreen(
-                                onVoltarClick = {
-                                    telaAtual = Tela.Home
-                                }
-                            )
-
-                        } else {
-                            telaAtual = Tela.AcessoNegado
-                        }
-                    }
-
-                    is Tela.Movimentacao -> {
-
-                        if (perfilUsuario == PerfilUsuario.ADMINISTRADOR) {
-
-                            MovimentacaoScreen(
-                                onVoltarClick = {
-                                    println("CLIQUEI EM VOLTAR")
-                                    telaAtual = Tela.Home
-                                }
-                            )
-
                         } else {
                             telaAtual = Tela.AcessoNegado
                         }
@@ -208,9 +170,65 @@ class MainActivity : ComponentActivity() {
                     is Tela.AcessoNegado -> {
                         AcessoNegadoScreen(
                             onVoltarClick = {
-                                telaAtual = Tela.Home
+                                telaAtual =
+                                    if (perfilAtual != null) {
+                                        Tela.Home
+                                    } else {
+                                        Tela.Login
+                                    }
                             }
                         )
+                    }
+
+                    is Tela.Categorias -> {
+                        if (perfilAtual == PerfilUsuario.ADMINISTRADOR) {
+                            CategoriasScreen(
+                                onVoltarClick = {
+                                    telaAtual = Tela.Home
+                                }
+                            )
+                        } else {
+                            telaAtual = Tela.AcessoNegado
+                        }
+                    }
+
+                    is Tela.FormasPagamento -> {
+                        if (perfilAtual == PerfilUsuario.ADMINISTRADOR) {
+                            FormasPagamentoScreen(
+                                onVoltarClick = {
+                                    telaAtual = Tela.Home
+                                }
+                            )
+                        } else {
+                            telaAtual = Tela.AcessoNegado
+                        }
+                    }
+
+                    is Tela.Movimentacao -> {
+                        if (perfilAtual == PerfilUsuario.ADMINISTRADOR) {
+                            MovimentacaoScreen(
+                                onVoltarClick = {
+                                    telaAtual = Tela.Home
+                                }
+                            )
+                        } else {
+                            telaAtual = Tela.AcessoNegado
+                        }
+                    }
+
+                    is Tela.Financiamento -> {
+                        if (perfilAtual == PerfilUsuario.ADMINISTRADOR) {
+                            FinanciamentoScreen(
+                                onVoltarClick = {
+                                    telaAtual = Tela.Home
+                                },
+                                formatarComoData = { data ->
+                                    data
+                                }
+                            )
+                        } else {
+                            telaAtual = Tela.AcessoNegado
+                        }
                     }
                 }
             }
