@@ -1,19 +1,19 @@
 package com.fleetflow.mobile.data.auth
 
-class AuthorizationManager(private val role: String?) {
+// Espelha a matriz de permissões por perfil que a API devolve em
+// GET /api/auth/me (ver src/permissions.js no backend): "E" = ver e editar,
+// "L" = somente leitura, ausente/null = sem acesso.
+class AuthorizationManager(private val permissoes: Map<String, String?>) {
 
-    fun canManageUsers(): Boolean {
-        val upperRole = role?.uppercase() ?: return false
-        return upperRole == "ADMINISTRATOR" || upperRole == "FLEET_MANAGER" || upperRole == "FINANCIAL"
-    }
+    private fun nivel(modulo: String): String? = permissoes[modulo]
 
-    fun canApproveUsers(): Boolean {
-        val upperRole = role?.uppercase() ?: return false
-        return upperRole == "ADMINISTRATOR" || upperRole == "FLEET_MANAGER"
-    }
+    fun podeLer(modulo: String): Boolean = nivel(modulo) == "E" || nivel(modulo) == "L"
 
-    fun canChangeUserRole(): Boolean {
-        val upperRole = role?.uppercase() ?: return false
-        return upperRole == "ADMINISTRATOR"
-    }
+    fun podeEditar(modulo: String): Boolean = nivel(modulo) == "E"
+
+    fun canManageUsers(): Boolean = podeEditar("usuarios")
+
+    fun canApproveUsers(): Boolean = podeEditar("usuarios")
+
+    fun canChangeUserRole(): Boolean = podeEditar("usuarios")
 }

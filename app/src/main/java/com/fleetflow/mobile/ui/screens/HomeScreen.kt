@@ -17,10 +17,23 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.data.MockDataService
+import com.fleetflow.mobile.data.model.UserResponseDto
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
-fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+fun HomeScreen(
+    usuario: UserResponseDto? = null,
+    onPerfilClick: () -> Unit,
+    onUsuariosClick: () -> Unit
+) {
+    val iniciais = usuario?.nome
+        ?.split(" ")
+        ?.take(2)
+        ?.mapNotNull { it.firstOrNull()?.uppercase() }
+        ?.joinToString("")
+        ?.ifEmpty { "FF" }
+        ?: "FF"
+
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
             modifier = Modifier
@@ -38,7 +51,7 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text("FleetFlow", color = AmbarDourado, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text("Painel Operacional", color = Branco, fontSize = 13.sp)
+                    Text(usuario?.perfil?.nome ?: "Painel Operacional", color = Branco, fontSize = 13.sp)
                 }
 
                 Box(
@@ -49,7 +62,7 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
                         .clickable { onPerfilClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("JP", color = Petroleo, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(iniciais, color = Petroleo, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
 

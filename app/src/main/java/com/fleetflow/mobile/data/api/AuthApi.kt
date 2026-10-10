@@ -1,11 +1,12 @@
 package com.fleetflow.mobile.data.api
 
 import com.fleetflow.mobile.data.model.AuthResponseDto
+import com.fleetflow.mobile.data.model.DevLoginRequestDto
 import com.fleetflow.mobile.data.model.GoogleLoginRequestDto
-import com.fleetflow.mobile.data.model.LogoutRequestDto
-import com.fleetflow.mobile.data.model.RefreshTokenRequestDto
+import com.fleetflow.mobile.data.model.MeResponseDto
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface AuthApi {
@@ -15,13 +16,12 @@ interface AuthApi {
         @Body request: GoogleLoginRequestDto
     ): Response<AuthResponseDto>
 
-    @POST("api/auth/refresh")
-    suspend fun refreshToken(
-        @Body request: RefreshTokenRequestDto
+    // Só funciona se a API estiver com DEV_LOGIN=true (ambiente local de testes).
+    @POST("api/auth/dev-login")
+    suspend fun devLogin(
+        @Body request: DevLoginRequestDto
     ): Response<AuthResponseDto>
 
-    @POST("api/auth/logout")
-    suspend fun logout(
-        @Body request: LogoutRequestDto
-    ): Response<Map<String, Any>>
+    @GET("api/auth/me")
+    suspend fun me(): Response<MeResponseDto>
 }

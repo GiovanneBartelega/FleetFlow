@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.data.auth.AuthorizationManager
+import com.fleetflow.mobile.data.model.PerfilDto
 import com.fleetflow.mobile.data.model.UserResponseDto
 import com.fleetflow.mobile.data.repository.AuthRepository
 import com.fleetflow.mobile.ui.theme.*
@@ -24,19 +25,20 @@ import kotlinx.coroutines.launch
 
 @Composable
 fun UsuariosScreen(
-    user: UserResponseDto? = null,
+    permissoes: Map<String, String?> = emptyMap(),
     onVoltarClick: () -> Unit
 ) {
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
-    val authorizationManager = remember(user) { AuthorizationManager(user?.role) }
+    val authorizationManager = remember(permissoes) { AuthorizationManager(permissoes) }
     val coroutineScope = rememberCoroutineScope()
 
     var usuarios by remember { mutableStateOf<List<UserResponseDto>>(emptyList()) }
+    var perfis by remember { mutableStateOf<List<PerfilDto>>(emptyList()) }
     var carregando by remember { mutableStateOf(true) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var selectedUserForRoleChange by remember { mutableStateOf<UserResponseDto?>(null) }
-    var pendingRoleChange by remember { mutableStateOf<Pair<UserResponseDto, String>?>(null) }
+    var pendingRoleChange by remember { mutableStateOf<Pair<UserResponseDto, PerfilDto>?>(null) }
 
     fun carregarUsuarios() {
         coroutineScope.launch {
@@ -47,6 +49,9 @@ fun UsuariosScreen(
                 usuarios = result.getOrDefault(emptyList())
             } else {
                 errorMessage = result.exceptionOrNull()?.message ?: "Erro ao carregar usuários."
+            }
+            if (authorizationManager.canChangeUserRole()) {
+                authRepository.getPerfis().onSuccess { perfis = it }
             }
             carregando = false
         }
@@ -158,25 +163,24 @@ fun UsuariosScreen(
         }
     }
 
-    // Dialog for Role Selection (Admin only - double guarded)
+    // Dialog de seleção de perfil (só quem pode editar usuários)
     if (selectedUserForRoleChange != null && authorizationManager.canChangeUserRole()) {
         AlertDialog(
             onDismissRequest = { selectedUserForRoleChange = null },
-            title = { Text("Alterar Perfil (Role)") },
+            title = { Text("Alterar perfil") },
             text = {
                 Column {
-                    Text("Selecione o novo perfil para ${selectedUserForRoleChange!!.name}:")
+                    Text("Selecione o novo perfil para ${selectedUserForRoleChange!!.nome}:")
                     Spacer(modifier = Modifier.height(8.dp))
-                    val roles = listOf("ADMINISTRATOR", "FLEET_MANAGER", "FINANCIAL", "DRIVER")
-                    roles.forEach { role ->
+                    perfis.forEach { perfil ->
                         TextButton(
                             onClick = {
                                 val targetUser = selectedUserForRoleChange!!
                                 selectedUserForRoleChange = null
-                                pendingRoleChange = Pair(targetUser, role)
+                                pendingRoleChange = Pair(targetUser, perfil)
                             }
                         ) {
-                            Text(role, fontWeight = FontWeight.Bold, color = Petroleo)
+                            Text(perfil.nome, fontWeight = FontWeight.Bold, color = Petroleo)
                         }
                     }
                 }
@@ -190,27 +194,25 @@ fun UsuariosScreen(
         )
     }
 
-    // Second Dialog: Confirmation for Role Change (Admin only - double guarded)
+    // Segundo dialog: confirmação da troca de perfil
     if (pendingRoleChange != null && authorizationManager.canChangeUserRole()) {
-        val (targetUser, newRole) = pendingRoleChange!!
+        val (targetUser, novoPerfil) = pendingRoleChange!!
         AlertDialog(
             onDismissRequest = { pendingRoleChange = null },
             title = { Text("Alterar perfil?") },
             text = {
-                Text("Você está alterando o perfil de ${targetUser.name} para $newRole. Essa alteração modificará as permissões desse usuário.")
+                Text("Você está alterando o perfil de ${targetUser.nome} para ${novoPerfil.nome}. Essa alteração modificará as permissões desse usuário.")
             },
             confirmButton = {
                 Button(
                     onClick = {
                         pendingRoleChange = null
-                        if (authorizationManager.canChangeUserRole()) {
-                            coroutineScope.launch {
-                                val res = authRepository.updateUserRole(targetUser.id, newRole)
-                                if (res.isSuccess) {
-                                    carregarUsuarios()
-                                } else {
-                                    errorMessage = res.exceptionOrNull()?.message
-                                }
+                        coroutineScope.launch {
+                            val res = authRepository.updateUserPerfil(targetUser.id, novoPerfil.id)
+                            if (res.isSuccess) {
+                                carregarUsuarios()
+                            } else {
+                                errorMessage = res.exceptionOrNull()?.message
                             }
                         }
                     },
@@ -252,7 +254,7 @@ private fun CardUsuario(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    usuario.name.take(1).uppercase(),
+                    usuario.nome.take(1).uppercase(),
                     color = Petroleo,
                     fontWeight = FontWeight.Bold,
                     fontSize = 16.sp
@@ -262,7 +264,7 @@ private fun CardUsuario(
             Spacer(modifier = Modifier.width(12.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(usuario.name, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                Text(usuario.nome, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                 Text(usuario.email, color = TextoSecundario, fontSize = 12.sp)
             }
 
@@ -284,7 +286,7 @@ private fun CardUsuario(
                     .padding(horizontal = 10.dp, vertical = 4.dp)
             ) {
                 Text(
-                    text = "${usuario.role} ${if (canChangeRole) "✎" else ""}",
+                    text = "${usuario.perfil.nome} ${if (canChangeRole) "✎" else ""}",
                     color = CinzaBadge,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
@@ -293,7 +295,7 @@ private fun CardUsuario(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            if (usuario.status == "PENDING" && canApprove) {
+            if (usuario.status == "AguardandoAprovacao" && canApprove) {
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(8.dp))
@@ -310,7 +312,7 @@ private fun CardUsuario(
 
 @Composable
 private fun BadgeStatus(status: String) {
-    val isAtivo = status == "ACTIVE"
+    val isAtivo = status == "Ativo"
     val cor = if (isAtivo) VerdeSuave else FundoInsight
     val corTexto = if (isAtivo) VerdeEsmeralda else AmbarAlerta
 

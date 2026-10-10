@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.google.gson.Gson
+import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -16,38 +18,42 @@ class TokenManager(private val context: Context) {
 
     companion object {
         val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
-        val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
         val USER_ID_KEY = stringPreferencesKey("user_id")
         val USER_NAME_KEY = stringPreferencesKey("user_name")
         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
-        val USER_ROLE_KEY = stringPreferencesKey("user_role")
+        val USER_PERFIL_KEY = stringPreferencesKey("user_perfil")
+        val USER_STATUS_KEY = stringPreferencesKey("user_status")
+        val PERMISSOES_KEY = stringPreferencesKey("permissoes")
+        private val gson = Gson()
     }
 
     val accessToken: Flow<String?> = context.dataStore.data.map { preferences ->
         preferences[ACCESS_TOKEN_KEY]
     }
 
-    val refreshToken: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[REFRESH_TOKEN_KEY]
-    }
-
     suspend fun getAccessToken(): String? = context.dataStore.data.map { it[ACCESS_TOKEN_KEY] }.first()
 
-    suspend fun getRefreshToken(): String? = context.dataStore.data.map { it[REFRESH_TOKEN_KEY] }.first()
-
-    suspend fun saveTokens(accessToken: String, refreshToken: String) {
+    suspend fun saveToken(token: String) {
         context.dataStore.edit { preferences ->
-            preferences[ACCESS_TOKEN_KEY] = accessToken
-            preferences[REFRESH_TOKEN_KEY] = refreshToken
+            preferences[ACCESS_TOKEN_KEY] = token
         }
     }
 
-    suspend fun saveUserInfo(id: String, name: String, email: String, role: String) {
+    suspend fun saveUserInfo(
+        id: String,
+        name: String,
+        email: String,
+        perfilNome: String,
+        status: String,
+        permissoes: Map<String, String?>
+    ) {
         context.dataStore.edit { preferences ->
             preferences[USER_ID_KEY] = id
             preferences[USER_NAME_KEY] = name
             preferences[USER_EMAIL_KEY] = email
-            preferences[USER_ROLE_KEY] = role
+            preferences[USER_PERFIL_KEY] = perfilNome
+            preferences[USER_STATUS_KEY] = status
+            preferences[PERMISSOES_KEY] = gson.toJson(permissoes)
         }
     }
 
@@ -55,16 +61,25 @@ class TokenManager(private val context: Context) {
 
     suspend fun getUserEmail(): String? = context.dataStore.data.map { it[USER_EMAIL_KEY] }.first()
 
-    suspend fun getUserRole(): String? = context.dataStore.data.map { it[USER_ROLE_KEY] }.first()
+    suspend fun getUserPerfil(): String? = context.dataStore.data.map { it[USER_PERFIL_KEY] }.first()
+
+    suspend fun getUserStatus(): String? = context.dataStore.data.map { it[USER_STATUS_KEY] }.first()
+
+    suspend fun getPermissoes(): Map<String, String?> {
+        val json = context.dataStore.data.map { it[PERMISSOES_KEY] }.first() ?: return emptyMap()
+        val type = object : TypeToken<Map<String, String?>>() {}.type
+        return gson.fromJson(json, type) ?: emptyMap()
+    }
 
     suspend fun clearTokens() {
         context.dataStore.edit { preferences ->
             preferences.remove(ACCESS_TOKEN_KEY)
-            preferences.remove(REFRESH_TOKEN_KEY)
             preferences.remove(USER_ID_KEY)
             preferences.remove(USER_NAME_KEY)
             preferences.remove(USER_EMAIL_KEY)
-            preferences.remove(USER_ROLE_KEY)
+            preferences.remove(USER_PERFIL_KEY)
+            preferences.remove(USER_STATUS_KEY)
+            preferences.remove(PERMISSOES_KEY)
         }
     }
 }

@@ -10,8 +10,9 @@ import java.util.concurrent.TimeUnit
 
 object ApiClient {
 
-    // Configurable base URL: 10.0.2.2 points to localhost (backend) from Android Emulator
-    private const val DEFAULT_BASE_URL = "http://10.0.2.2:8080/"
+    // 10.0.2.2 aponta para o localhost da máquina host a partir do emulador Android.
+    // A API Node fica na porta 3000 (ver src/server.js / .env).
+    private const val DEFAULT_BASE_URL = "http://10.0.2.2:3000/"
 
     @Volatile
     private var retrofit: Retrofit? = null
@@ -53,7 +54,6 @@ object ApiClient {
             .writeTimeout(15, TimeUnit.SECONDS)
             .addInterceptor(AuthInterceptor(tokenManager))
             .addInterceptor(loggingInterceptor)
-            .authenticator(TokenAuthenticator(tokenManager) { getAuthApi(context) })
             .build()
 
         return Retrofit.Builder()

@@ -23,20 +23,50 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.fleetflow.mobile.R
 import com.fleetflow.mobile.data.model.UserResponseDto
+import com.fleetflow.mobile.data.repository.ApiException
 import com.fleetflow.mobile.data.repository.AuthRepository
 import com.fleetflow.mobile.ui.theme.*
 import kotlinx.coroutines.launch
 
+// Usuários de teste inseridos no banco (um por perfil) para validar o app sem
+// depender de uma conta Google real. Exigem DEV_LOGIN=true na API (uso local).
+private data class PerfilDeTeste(val rotulo: String, val email: String)
+
+private val PERFIS_DE_TESTE = listOf(
+    PerfilDeTeste("Administrador", "admin.teste@fleetflow.com"),
+    PerfilDeTeste("Financeiro", "financeiro.teste@fleetflow.com"),
+    PerfilDeTeste("Gestor de Frota", "gestorfrota.teste@fleetflow.com"),
+    PerfilDeTeste("Operador Motorista", "motorista.teste@fleetflow.com"),
+)
+
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
-    onUserLoginSuccess: (UserResponseDto) -> Unit = { onLoginSuccess() }
+    onUserLoginSuccess: (UserResponseDto) -> Unit = { onLoginSuccess() },
+    onAccountPending: () -> Unit = {},
+    onAccountBlocked: () -> Unit = {}
 ) {
     var carregando by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var mostrarPerfisDeTeste by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
+
+    fun tratarResultado(result: Result<UserResponseDto>) {
+        if (result.isSuccess) {
+            onUserLoginSuccess(result.getOrThrow())
+            return
+        }
+        val erro = result.exceptionOrNull()
+        if (erro is ApiException) {
+            when (erro.code) {
+                "ACCOUNT_PENDING" -> { onAccountPending(); return }
+                "ACCOUNT_BLOCKED", "ACCOUNT_DISABLED" -> { onAccountBlocked(); return }
+            }
+        }
+        errorMessage = erro?.message ?: "Falha no login."
+    }
 
     fun performRealGoogleLogin() {
         coroutineScope.launch {
@@ -61,18 +91,12 @@ fun LoginScreen(
                 if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
                     val idToken = googleIdTokenCredential.idToken
-
-                    val apiResult = authRepository.loginWithGoogle(idToken)
-                    if (apiResult.isSuccess) {
-                        onUserLoginSuccess(apiResult.getOrThrow())
-                    } else {
-                        errorMessage = "Erro no login: ${apiResult.exceptionOrNull()?.message}"
-                    }
+                    tratarResultado(authRepository.loginWithGoogle(idToken))
                 } else {
                     errorMessage = "Tipo de credencial inválido."
                 }
             } catch (ex: NoCredentialException) {
-                errorMessage = "Nenhuma conta Google encontrada no dispositivo. Adicione uma conta Google nas Configurações do Android ou utilize o Modo Desenvolvedor abaixo."
+                errorMessage = "Nenhuma conta Google encontrada no dispositivo. Adicione uma conta Google nas Configurações do Android ou use um perfil de teste abaixo."
             } catch (ex: GetCredentialCancellationException) {
                 errorMessage = "Login com Google cancelado pelo usuário."
             } catch (ex: GetCredentialException) {
@@ -85,16 +109,11 @@ fun LoginScreen(
         }
     }
 
-    fun performMockDevLogin() {
+    fun performDevLogin(email: String) {
         coroutineScope.launch {
             carregando = true
             errorMessage = null
-            val result = authRepository.loginWithGoogle("mock-id-token:dev-user-1:joao.pedro@fleetflow.com:João Pedro")
-            if (result.isSuccess) {
-                onUserLoginSuccess(result.getOrThrow())
-            } else {
-                onLoginSuccess()
-            }
+            tratarResultado(authRepository.loginDev(email))
             carregando = false
         }
     }
@@ -153,14 +172,48 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TextButton(
-                onClick = { performMockDevLogin() },
+                onClick = { mostrarPerfisDeTeste = !mostrarPerfisDeTeste },
                 enabled = !carregando
             ) {
                 Text(
-                    text = "Modo Desenvolvedor / Emulador (Mock Login)",
+                    text = "Modo Desenvolvedor / Emulador (perfis de teste)",
                     fontSize = 12.sp,
                     color = AzulGoogle
                 )
+            }
+
+            if (mostrarPerfisDeTeste) {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    PERFIS_DE_TESTE.forEach { perfil ->
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(44.dp),
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, CinzaSuave),
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .clickable(enabled = !carregando) { performDevLogin(perfil.email) },
+                                horizontalArrangement = Arrangement.Center,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Entrar como ${perfil.rotulo}",
+                                    color = Petroleo,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 14.sp
+                                )
+                            }
+                        }
+                    }
+                }
             }
 
             if (carregando) {

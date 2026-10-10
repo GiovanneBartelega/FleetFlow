@@ -22,9 +22,9 @@ fun PerfilScreen(
     user: UserResponseDto? = null,
     onSairClick: () -> Unit
 ) {
-    val nomeExibicao = user?.name ?: "Nome do Usuário"
+    val nomeExibicao = user?.nome ?: "Nome do Usuário"
     val iniciais = nomeExibicao.split(" ").take(2).mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("")
-    val perfilTexto = if (user?.role == "ADMINISTRATOR") "Administrador" else user?.role ?: "Administrador"
+    val perfilTexto = user?.perfil?.nome ?: "Administrador"
 
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
