@@ -27,6 +27,28 @@ import com.fleetflow.mobile.data.repository.AuthRepository
 import com.fleetflow.mobile.ui.theme.*
 import kotlinx.coroutines.launch
 
+// Contas do Modo Desenvolvedor. O backend aceita um "mock-id-token" no lugar do
+// token do Google. Depois que o backend liga, a primeira conta que entrar vira
+// Administrador; as outras entram como pendentes e esperam aprovação.
+private data class ContaDeTeste(val id: String, val nome: String, val email: String) {
+    val tokenDeTeste: String get() = "mock-id-token:$id:$email:$nome"
+}
+
+private val CONTAS_DE_TESTE = listOf(
+    ContaDeTeste("dev-user-1", "João Pedro", "joao.pedro@fleetflow.com"),
+    ContaDeTeste("dev-user-2", "Fernanda Lima", "fernanda.lima@fleetflow.com"),
+    ContaDeTeste("dev-user-3", "Gustavo Reis", "gustavo.reis@fleetflow.com"),
+    ContaDeTeste("dev-user-4", "Marcos Silva", "marcos.silva@fleetflow.com"),
+)
+
+// Troca o erro técnico por uma mensagem que diz o que fazer (US15).
+private fun mensagemDeErro(erro: Throwable?): String = when (erro) {
+    is java.io.IOException ->
+        "Não foi possível conectar ao servidor. Confira se o backend está rodando e tente de novo."
+    null -> "Falha no login."
+    else -> erro.message ?: "Falha no login."
+}
+
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
@@ -34,6 +56,7 @@ fun LoginScreen(
 ) {
     var carregando by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var mostrarContasDeTeste by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val authRepository = remember { AuthRepository(context) }
     val coroutineScope = rememberCoroutineScope()
@@ -66,7 +89,7 @@ fun LoginScreen(
                     if (apiResult.isSuccess) {
                         onUserLoginSuccess(apiResult.getOrThrow())
                     } else {
-                        errorMessage = "Erro no login: ${apiResult.exceptionOrNull()?.message}"
+                        errorMessage = mensagemDeErro(apiResult.exceptionOrNull())
                     }
                 } else {
                     errorMessage = "Tipo de credencial inválido."
@@ -85,15 +108,17 @@ fun LoginScreen(
         }
     }
 
-    fun performMockDevLogin() {
+    // Login do Modo Desenvolvedor. Antes, com o backend desligado, a falha era
+    // silenciosa: nada acontecia na tela.
+    fun performDevLogin(conta: ContaDeTeste) {
         coroutineScope.launch {
             carregando = true
             errorMessage = null
-            val result = authRepository.loginWithGoogle("mock-id-token:dev-user-1:joao.pedro@fleetflow.com:João Pedro")
+            val result = authRepository.loginWithGoogle(conta.tokenDeTeste)
             if (result.isSuccess) {
                 onUserLoginSuccess(result.getOrThrow())
             } else {
-                onLoginSuccess()
+                errorMessage = mensagemDeErro(result.exceptionOrNull())
             }
             carregando = false
         }
@@ -153,14 +178,36 @@ fun LoginScreen(
             Spacer(modifier = Modifier.height(12.dp))
 
             TextButton(
-                onClick = { performMockDevLogin() },
+                onClick = { mostrarContasDeTeste = !mostrarContasDeTeste },
                 enabled = !carregando
             ) {
                 Text(
-                    text = "Modo Desenvolvedor / Emulador (Mock Login)",
+                    text = "Modo Desenvolvedor / Emulador (contas de teste)",
                     fontSize = 12.sp,
                     color = AzulGoogle
                 )
+            }
+
+            if (mostrarContasDeTeste) {
+                Text(
+                    text = "Depois que o backend liga, a primeira conta que entrar vira Administrador. As outras esperam aprovação.",
+                    fontSize = 11.sp,
+                    color = TextoSecundario,
+                    textAlign = TextAlign.Center
+                )
+                CONTAS_DE_TESTE.forEach { conta ->
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedButton(
+                        onClick = { performDevLogin(conta) },
+                        enabled = !carregando,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Entrar como ${conta.nome}", color = Petroleo, fontWeight = FontWeight.SemiBold)
+                    }
+                }
             }
 
             if (carregando) {
