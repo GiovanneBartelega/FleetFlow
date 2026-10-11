@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.data.model.UserResponseDto
+import com.fleetflow.mobile.perfilLegivel
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
@@ -24,7 +25,9 @@ fun PerfilScreen(
 ) {
     val nomeExibicao = user?.name ?: "Nome do Usuário"
     val iniciais = nomeExibicao.split(" ").take(2).mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("")
-    val perfilTexto = if (user?.role == "ADMINISTRATOR") "Administrador" else user?.role ?: "Administrador"
+    // Antes só o Administrador aparecia em português; os outros apareciam como
+    // FINANCIAL, FLEET_MANAGER e DRIVER.
+    val perfilTexto = user?.role?.let { perfilLegivel(it) } ?: ""
 
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
@@ -44,7 +47,7 @@ fun PerfilScreen(
                     .background(AmbarDourado),
                 contentAlignment = Alignment.Center
             ) {
-                Text(iniciais.ifEmpty { "JP" }, color = Petroleo, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(iniciais.ifEmpty { "FF" }, color = Petroleo, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

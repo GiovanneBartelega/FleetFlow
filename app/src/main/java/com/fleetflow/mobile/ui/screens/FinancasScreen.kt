@@ -97,8 +97,18 @@ object MovimentacaoRepo {
         val d = dao ?: return
         scope.launch { d.inserir(m.toEntity()) }
     }
-}
 
+    // Chamado ao sair da conta: apaga o que foi lançado neste aparelho, para a
+    // próxima pessoa que entrar não ver os lançamentos da anterior. Os exemplos
+    // voltam porque esta tela ainda não lê da API (isso chega na entrega de 14/10).
+    fun limpar() {
+        val d = dao ?: return
+        scope.launch {
+            d.limparTudo()
+            seedInicial.forEach { d.inserir(it.toEntity()) }
+        }
+    }
+}
 // Exemplos, com horário de inclusão decrescente para aparecerem nesta ordem.
 private val agora = System.currentTimeMillis()
 private val seedInicial = listOf(

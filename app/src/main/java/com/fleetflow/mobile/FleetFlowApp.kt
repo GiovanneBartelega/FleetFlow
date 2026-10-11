@@ -12,8 +12,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
@@ -46,13 +46,15 @@ import kotlinx.coroutines.launch
 
 enum class Profile { ADMIN, FINANCEIRO, GESTOR, MOTORISTA }
 
-// O backend manda o perfil como texto em inglês. Aqui ele vira o nosso enum.
+// O backend manda o perfil como texto. Aqui ele vira o nosso enum.
+// Aceita os nomes do backend Spring (ADMINISTRATOR...) e também os da tabela
+// "perfis" do banco (Administrador...), para facilitar quando o grupo juntar as branches.
 // Texto desconhecido vira null, e null não entra no app.
 fun profileFromRole(role: String): Profile? = when (role) {
-    "ADMINISTRATOR" -> Profile.ADMIN
-    "FINANCIAL" -> Profile.FINANCEIRO
-    "FLEET_MANAGER" -> Profile.GESTOR
-    "DRIVER" -> Profile.MOTORISTA
+    "ADMINISTRATOR", "Administrador" -> Profile.ADMIN
+    "FINANCIAL", "Financeiro" -> Profile.FINANCEIRO
+    "FLEET_MANAGER", "GestorFrota" -> Profile.GESTOR
+    "DRIVER", "OperadorMotorista" -> Profile.MOTORISTA
     else -> null
 }
 
@@ -63,26 +65,29 @@ fun nomeDoPerfil(p: Profile): String = when (p) {
     Profile.MOTORISTA -> "Motorista"
 }
 
+// Para mostrar na tela: "FLEET_MANAGER" vira "Gestor de Frota".
+fun perfilLegivel(role: String): String =
+    profileFromRole(role)?.let { nomeDoPerfil(it) } ?: role
+
 enum class Screen(val label: String, val icon: ImageVector) {
     HOME("Início", Icons.Filled.Home),
     FINANCAS("Finanças", Icons.Filled.AccountBalanceWallet),
     FROTA("Frota", Icons.Filled.LocalShipping),
     VIAGENS("Viagens", Icons.Filled.Route),
-    COMBUSTIVEL("Combustível", Icons.Filled.LocalGasStation),
+    VEICULOS("Veículos", Icons.Filled.DirectionsCar),
     RELATORIOS("Relatórios", Icons.Filled.Description),
     PERFIL("Perfil", Icons.Filled.Person),
 }
 
-// A REGRA DE PERMISSÃO: quais abas cada perfil enxerga.
+// A REGRA DE PERMISSÃO: quais abas cada perfil enxerga (US17 e mapa de telas).
 fun tabsFor(profile: Profile): List<Screen> = when (profile) {
     Profile.ADMIN      -> listOf(Screen.HOME, Screen.FINANCAS, Screen.FROTA, Screen.VIAGENS, Screen.PERFIL)
     Profile.FINANCEIRO -> listOf(Screen.HOME, Screen.FINANCAS, Screen.RELATORIOS, Screen.PERFIL)
     Profile.GESTOR     -> listOf(Screen.HOME, Screen.FROTA, Screen.VIAGENS, Screen.RELATORIOS, Screen.PERFIL)
-    Profile.MOTORISTA  -> listOf(Screen.VIAGENS, Screen.COMBUSTIVEL, Screen.PERFIL)
+    Profile.MOTORISTA  -> listOf(Screen.VIAGENS, Screen.VEICULOS, Screen.PERFIL)
 }
 
-// Gestão de usuários: só Administrador, como diz a especificação.
-// O backend hoje também deixa o Financeiro listar. Se o grupo decidir manter, é só mudar aqui.
+// Gestão de usuários: só Administrador, como diz a especificação (US16).
 fun podeGerenciarUsuarios(p: Profile) = p == Profile.ADMIN
 
 @Composable
@@ -139,6 +144,8 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
                             HomeLogisticaPlaceholder()
                         } else {
                             HomeScreen(
+                                usuario = usuario,
+                                mostrarGestaoUsuarios = podeGerenciarUsuarios(perfil),
                                 onPerfilClick = { current = Screen.PERFIL },
                                 onUsuariosClick = { mostrandoUsuarios = true },
                             )
@@ -173,6 +180,7 @@ private fun HomeLogisticaPlaceholder() {
     }
 }
 
+// Abas cujos módulos chegam nas próximas entregas (Frota, Viagens, Veículos, Relatórios).
 @Composable
 private fun GenericPlaceholder(label: String) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

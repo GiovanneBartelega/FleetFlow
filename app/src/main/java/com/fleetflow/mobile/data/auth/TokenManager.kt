@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fleetflow.mobile.data.model.UserResponseDto
+import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -21,24 +23,31 @@ class TokenManager(private val context: Context) {
         val USER_NAME_KEY = stringPreferencesKey("user_name")
         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
         val USER_ROLE_KEY = stringPreferencesKey("user_role")
+        val USUARIO_JSON_KEY = stringPreferencesKey("usuario_json")
+        private val gson = Gson()
     }
 
+    // Os dois tokens ficam gravados CRIPTOGRAFADOS (ver CryptoManager).
+    // Quem lê por aqui recebe o token original. Se não der para decifrar,
+    // recebe null, e o app pede o login de novo.
     val accessToken: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[ACCESS_TOKEN_KEY]
+        preferences[ACCESS_TOKEN_KEY]?.let { CryptoManager.descriptografar(it) }
     }
 
     val refreshToken: Flow<String?> = context.dataStore.data.map { preferences ->
-        preferences[REFRESH_TOKEN_KEY]
+        preferences[REFRESH_TOKEN_KEY]?.let { CryptoManager.descriptografar(it) }
     }
 
-    suspend fun getAccessToken(): String? = context.dataStore.data.map { it[ACCESS_TOKEN_KEY] }.first()
+    suspend fun getAccessToken(): String? = accessToken.first()
 
-    suspend fun getRefreshToken(): String? = context.dataStore.data.map { it[REFRESH_TOKEN_KEY] }.first()
+    suspend fun getRefreshToken(): String? = refreshToken.first()
 
     suspend fun saveTokens(accessToken: String, refreshToken: String) {
+        val accessCifrado = CryptoManager.criptografar(accessToken)
+        val refreshCifrado = CryptoManager.criptografar(refreshToken)
         context.dataStore.edit { preferences ->
-            preferences[ACCESS_TOKEN_KEY] = accessToken
-            preferences[REFRESH_TOKEN_KEY] = refreshToken
+            preferences[ACCESS_TOKEN_KEY] = accessCifrado
+            preferences[REFRESH_TOKEN_KEY] = refreshCifrado
         }
     }
 
@@ -49,6 +58,19 @@ class TokenManager(private val context: Context) {
             preferences[USER_EMAIL_KEY] = email
             preferences[USER_ROLE_KEY] = role
         }
+    }
+
+    // Guarda o usuário inteiro (com o status) para abrir o app sem internet.
+    suspend fun saveUsuario(usuario: UserResponseDto) {
+        val json = gson.toJson(usuario)
+        context.dataStore.edit { preferences ->
+            preferences[USUARIO_JSON_KEY] = json
+        }
+    }
+
+    suspend fun getUsuarioSalvo(): UserResponseDto? {
+        val json = context.dataStore.data.map { it[USUARIO_JSON_KEY] }.first() ?: return null
+        return runCatching { gson.fromJson(json, UserResponseDto::class.java) }.getOrNull()
     }
 
     suspend fun getUserName(): String? = context.dataStore.data.map { it[USER_NAME_KEY] }.first()
@@ -65,6 +87,7 @@ class TokenManager(private val context: Context) {
             preferences.remove(USER_NAME_KEY)
             preferences.remove(USER_EMAIL_KEY)
             preferences.remove(USER_ROLE_KEY)
+            preferences.remove(USUARIO_JSON_KEY)
         }
     }
 }

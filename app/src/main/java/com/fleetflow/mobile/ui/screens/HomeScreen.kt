@@ -17,10 +17,29 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.data.MockDataService
+import com.fleetflow.mobile.data.model.UserResponseDto
+import com.fleetflow.mobile.perfilLegivel
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
-fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+fun HomeScreen(
+    usuario: UserResponseDto? = null,
+    // Quem decide é o FleetFlowApp, a partir do perfil: só o Administrador vê (US16).
+    mostrarGestaoUsuarios: Boolean = true,
+    onPerfilClick: () -> Unit,
+    onUsuariosClick: () -> Unit
+) {
+    // Dados de quem entrou, no lugar do "João Pedro" fixo.
+    val nome = usuario?.name?.trim().orEmpty()
+    val primeiroNome = nome.split(" ").firstOrNull()?.takeIf { it.isNotBlank() }
+    val iniciais = nome.split(" ")
+        .filter { it.isNotBlank() }
+        .take(2)
+        .mapNotNull { it.firstOrNull()?.uppercase() }
+        .joinToString("")
+        .ifEmpty { "FF" }
+    val subtitulo = usuario?.role?.let { "${perfilLegivel(it)} · FleetFlow" } ?: "FleetFlow"
+
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
             modifier = Modifier
@@ -47,15 +66,20 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
                         .clickable { onPerfilClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("JP", color = Petroleo, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                    Text(iniciais, color = Petroleo, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
 
             Column(modifier = Modifier.padding(20.dp)) {
 
-                Text("Ola, Joao Pedro", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "Administrador - FleetFlow",
+                    if (primeiroNome != null) "Olá, $primeiroNome" else "Olá",
+                    color = TextoPrincipal,
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    subtitulo,
                     color = TextoSecundario,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
@@ -84,7 +108,7 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
                     Text("INSIGHT", color = AmbarDourado, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
                     Spacer(modifier = Modifier.height(6.dp))
                     Text(
-                        "Suas despesas com combustivel subiram 12% em relacao ao mes passado.",
+                        "Suas despesas com combustível subiram 12% em relação ao mês passado.",
                         color = TextoPrincipal,
                         fontSize = 13.sp
                     )
@@ -123,20 +147,22 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(containerColor = AmbarDourado)
                 ) {
-                    Text("Ver todas as movimentacoes", color = Petroleo, fontWeight = FontWeight.SemiBold)
+                    Text("Ver todas as movimentações", color = Petroleo, fontWeight = FontWeight.SemiBold)
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                if (mostrarGestaoUsuarios) {
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Button(
-                    onClick = onUsuariosClick,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Petroleo)
-                ) {
-                    Text("Gestao de Usuarios", color = Branco, fontWeight = FontWeight.SemiBold)
+                    Button(
+                        onClick = onUsuariosClick,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(48.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = Petroleo)
+                    ) {
+                        Text("Gestão de Usuários", color = Branco, fontWeight = FontWeight.SemiBold)
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
