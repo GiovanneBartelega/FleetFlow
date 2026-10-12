@@ -1,0 +1,27 @@
+{
+  "snapshots_anexados": {
+    "FleetFlow-front-gabriel.zip": {
+      "sha256": "aa47d0e6b2b5f4b0fbfbfb027a226973cc95bd39163df6a55bc29bd3a51bd283",
+      "size_bytes": 2698037
+    },
+    "FleetFlow-main.zip": {
+      "sha256": "69238cc4e320e16d8b47dcad598d5c5632b6517aa37f9ce946ce0f568a4cb101",
+      "size_bytes": 44775069
+    },
+    "FleetFlow-banco-de-dados-gabriel.zip": {
+      "sha256": "b3a9ed48725a162cb45520bc963098c006911d5eb3f2d194baed618c10d98f74",
+      "size_bytes": 47212607
+    },
+    "Divisão de tarefas.docx": {
+      "sha256": "04c8c091d8e141cbe01303ad01c76b995c7557eb384b295fc1d8b9fdb87cbd0b",
+      "size_bytes": 10745
+    },
+    "FleetFlow-feat-rbac-motorista.zip": {
+      "sha256": "ddd0a964bb47522bc05c254f1fafe31bd21615fcbb474c6991d1ec04a11d2241",
+      "size_bytes": 2612489
+    }
+  },
+  "base_visual": "FleetFlow-front-gabriel",
+  "api_ativa": "Node.js Express MySQL",
+  "escopo": "Até 14/10/2026"
+}

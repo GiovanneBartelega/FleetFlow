@@ -1,0 +1,3593 @@
+diff --git a/app/build.gradle.kts b/app/build.gradle.kts
+index 3108992..e3970a5 100644
+--- a/app/build.gradle.kts
++++ b/app/build.gradle.kts
+@@ -1,6 +1,8 @@
+ plugins {
+     alias(libs.plugins.android.application)
++    alias(libs.plugins.kotlin.android)
+     alias(libs.plugins.kotlin.compose)
++    alias(libs.plugins.ksp)
+ }
+ 
+ android {
+@@ -13,27 +15,31 @@ android {
+         targetSdk = 35
+         versionCode = 1
+         versionName = "1.0"
++        val apiUrl = providers.gradleProperty("FLEETFLOW_API_URL").getOrElse("http://10.0.2.2:3000/")
++        buildConfigField("String", "API_BASE_URL", "\"$apiUrl\"")
+ 
+         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+     }
+ 
+     buildTypes {
+         release {
+-            optimization {
+-                enable = false
+-            }
++            isMinifyEnabled = false
+         }
+     }
+     compileOptions {
++        isCoreLibraryDesugaringEnabled = true
+         sourceCompatibility = JavaVersion.VERSION_11
+         targetCompatibility = JavaVersion.VERSION_11
+     }
++    kotlinOptions { jvmTarget = "11" }
+     buildFeatures {
++        buildConfig = true
+         compose = true
+     }
+ }
+ 
+ dependencies {
++    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
+     implementation(platform(libs.androidx.compose.bom))
+     implementation(libs.androidx.activity.compose)
+     implementation(libs.androidx.compose.material3)
+@@ -58,6 +64,13 @@ dependencies {
+     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
+     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+ 
++    // Ícones Material completos (barra de abas)
++    implementation("androidx.compose.material:material-icons-extended")
++    // Room — banco local no aparelho
++    implementation("androidx.room:room-runtime:2.7.1")
++    implementation("androidx.room:room-ktx:2.7.1")
++    ksp("androidx.room:room-compiler:2.7.1")
++
+     testImplementation(libs.junit)
+     androidTestImplementation(platform(libs.androidx.compose.bom))
+     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+diff --git a/app/src/main/AndroidManifest.xml b/app/src/main/AndroidManifest.xml
+index 7eb3555..1502719 100644
+--- a/app/src/main/AndroidManifest.xml
++++ b/app/src/main/AndroidManifest.xml
+@@ -4,8 +4,10 @@
+ 
+     <uses-permission android:name="android.permission.INTERNET" />
+ 
++    <uses-permission android:name="android.permission.CAMERA" />
++    <uses-feature android:name="android.hardware.camera" android:required="false" />
+     <application
+-        android:allowBackup="true"
++        android:allowBackup="false"
+         android:dataExtractionRules="@xml/data_extraction_rules"
+         android:fullBackupContent="@xml/backup_rules"
+         android:icon="@mipmap/ic_launcher"
+@@ -14,6 +16,10 @@
+         android:supportsRtl="true"
+         android:usesCleartextTraffic="true"
+         android:theme="@style/Theme.FleetFlow">
++        <provider android:name="androidx.core.content.FileProvider"
++            android:authorities="${applicationId}.fileprovider" android:exported="false" android:grantUriPermissions="true">
++            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
++        </provider>
+         <activity
+             android:name=".MainActivity"
+             android:exported="true"
+diff --git a/app/src/main/java/com/fleetflow/mobile/FleetFlowApp.kt b/app/src/main/java/com/fleetflow/mobile/FleetFlowApp.kt
+new file mode 100644
+index 0000000..7ddec87
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/FleetFlowApp.kt
+@@ -0,0 +1,200 @@
++package com.fleetflow.mobile
++
++import androidx.activity.compose.BackHandler
++import androidx.compose.foundation.layout.Arrangement
++import androidx.compose.foundation.layout.Box
++import androidx.compose.foundation.layout.Column
++import androidx.compose.foundation.layout.Spacer
++import androidx.compose.foundation.layout.consumeWindowInsets
++import androidx.compose.foundation.layout.fillMaxSize
++import androidx.compose.foundation.layout.height
++import androidx.compose.foundation.layout.padding
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.filled.AccountBalanceWallet
++import androidx.compose.material.icons.filled.Description
++import androidx.compose.material.icons.filled.Home
++import androidx.compose.material.icons.filled.LocalGasStation
++import androidx.compose.material.icons.filled.LocalShipping
++import androidx.compose.material.icons.filled.Person
++import androidx.compose.material.icons.filled.Route
++import androidx.compose.material3.Icon
++import androidx.compose.material3.MaterialTheme
++import androidx.compose.material3.NavigationBar
++import androidx.compose.material3.NavigationBarItem
++import androidx.compose.material3.Scaffold
++import androidx.compose.material3.SnackbarHost
++import androidx.compose.material3.SnackbarHostState
++import androidx.compose.material3.Text
++import androidx.compose.runtime.Composable
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.ui.platform.LocalContext
++import com.fleetflow.mobile.data.auth.TokenManager
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.setValue
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.vector.ImageVector
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.unit.dp
++import com.fleetflow.mobile.data.model.UserResponseDto
++import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
++import com.fleetflow.mobile.ui.screens.*
++import com.fleetflow.mobile.ui.screens.HomeScreen
++import com.fleetflow.mobile.ui.screens.PerfilScreen
++import com.fleetflow.mobile.ui.screens.UsuariosScreen
++import kotlinx.coroutines.launch
++
++enum class Profile { ADMIN, FINANCEIRO, GESTOR, MOTORISTA }
++
++// A API de Dados fornece perfil.nome em português; aqui ele vira o enum da navegação.
++// Texto desconhecido vira null, e null não entra no app.
++fun profileFromRole(role: String): Profile? = when (role) {
++    "Administrador" -> Profile.ADMIN
++    "Financeiro" -> Profile.FINANCEIRO
++    "GestorFrota" -> Profile.GESTOR
++    "OperadorMotorista" -> Profile.MOTORISTA
++    else -> null
++}
++
++fun nomeDoPerfil(p: Profile): String = when (p) {
++    Profile.ADMIN -> "Administrador"
++    Profile.FINANCEIRO -> "Financeiro"
++    Profile.GESTOR -> "Gestor de Frota"
++    Profile.MOTORISTA -> "Motorista"
++}
++
++enum class Screen(val label: String, val icon: ImageVector) {
++    HOME("Início", Icons.Filled.Home),
++    FINANCAS("Finanças", Icons.Filled.AccountBalanceWallet),
++    FROTA("Frota", Icons.Filled.LocalShipping),
++    VIAGENS("Viagens", Icons.Filled.Route),
++    COMBUSTIVEL("Combustível", Icons.Filled.LocalGasStation),
++    RELATORIOS("Relatórios", Icons.Filled.Description),
++    PERFIL("Perfil", Icons.Filled.Person),
++}
++
++// A REGRA DE PERMISSÃO: quais abas cada perfil enxerga.
++fun tabsFor(profile: Profile): List<Screen> = when (profile) {
++    Profile.ADMIN      -> listOf(Screen.HOME, Screen.FINANCAS, Screen.FROTA, Screen.VIAGENS, Screen.PERFIL)
++    Profile.FINANCEIRO -> listOf(Screen.HOME, Screen.FINANCAS, Screen.RELATORIOS, Screen.PERFIL)
++    Profile.GESTOR     -> listOf(Screen.HOME, Screen.FROTA, Screen.VIAGENS, Screen.RELATORIOS, Screen.PERFIL)
++    Profile.MOTORISTA  -> listOf(Screen.VIAGENS, Screen.COMBUSTIVEL, Screen.PERFIL)
++}
++
++// Gestão de usuários: só Administrador, como diz a especificação.
++// A API também restringe gestão de usuários ao Administrador.
++fun podeGerenciarUsuarios(p: Profile) = p == Profile.ADMIN
++
++@Composable
++fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
++    val context=LocalContext.current
++    var permissoes by remember(usuario.id) {mutableStateOf<Map<String,String?>>(emptyMap())}
++    LaunchedEffect(usuario.id) {permissoes=TokenManager(context).getPermissoes()}
++    val perfil = profileFromRole(usuario.perfil.nome)
++    if (perfil == null) {
++        // Perfil que o app não conhece: por segurança, não entra.
++        AcessoNegadoScreen(onVoltarClick = onLogout)
++        return
++    }
++
++    val tabs = tabsFor(perfil)
++    var current by remember(perfil) { mutableStateOf(tabs.first()) }  // motorista cai em Viagens
++    var cadastro by remember { mutableStateOf<String?>(null) }
++    var mostrandoUsuarios by remember { mutableStateOf(false) }
++
++    val snackbarHostState = remember { SnackbarHostState() }
++    val scope = rememberCoroutineScope()
++
++    BackHandler(enabled = mostrandoUsuarios || cadastro != null) { mostrandoUsuarios = false; cadastro = null }
++
++    Scaffold(
++        bottomBar = {
++            NavigationBar {
++                tabs.forEach { screen ->
++                    NavigationBarItem(
++                        selected = current == screen && !mostrandoUsuarios,
++                        onClick = { current = screen; mostrandoUsuarios = false; cadastro = null },
++                        icon = { Icon(screen.icon, contentDescription = screen.label) },
++                        label = { Text(screen.label) },
++                    )
++                }
++            }
++        },
++        snackbarHost = { SnackbarHost(snackbarHostState) },
++    ) { padding ->
++        Box(
++            Modifier
++                .fillMaxSize()
++                .padding(padding)
++                // As telas do grupo têm Scaffold próprio. Sem esta linha, o espaço da barra
++                // de status seria somado duas vezes e sobraria uma faixa vazia no topo.
++                .consumeWindowInsets(padding)
++        ) {
++            if (cadastro != null) {
++                when(cadastro) {
++                    "categorias" -> CategoriasScreen(onVoltarClick = {cadastro=null}, somenteLeitura = perfil == Profile.GESTOR)
++                    "formas" -> FormasPagamentoScreen(onVoltarClick = {cadastro=null}, somenteLeitura = perfil == Profile.GESTOR)
++                    "dividas" -> FinanciamentoScreen(onVoltarClick = {cadastro=null})
++                }
++            } else if (mostrandoUsuarios) {
++                if (podeGerenciarUsuarios(perfil)) {
++                    UsuariosScreen(permissoes=permissoes, onVoltarClick = { mostrandoUsuarios = false })
++                } else {
++                    AcessoNegadoScreen(onVoltarClick = { mostrandoUsuarios = false })
++                }
++            } else {
++                when (current) {
++                    Screen.HOME ->
++                        if (perfil == Profile.GESTOR) {
++                            HomeLogisticaPlaceholder(onCategorias={cadastro="categorias"},onFormas={cadastro="formas"})
++                        } else {
++                            HomeScreen(
++                                usuario = usuario,
++                                podeUsuarios = podeGerenciarUsuarios(perfil),
++                                onMovimentacoes = {current=Screen.FINANCAS},
++                                onPerfilClick = { current = Screen.PERFIL },
++                                onUsuariosClick = { mostrandoUsuarios = true },
++                            )
++                        }
++                    Screen.FINANCAS -> FinancasScreen(
++                        onCategorias = {cadastro="categorias"}, onFormas={cadastro="formas"}, onDividas={cadastro="dividas"},
++                        onMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
++                    )
++                    Screen.PERFIL -> PerfilScreen(user = usuario, onSairClick = onLogout)
++                    else -> GenericPlaceholder(current.label)
++                }
++            }
++        }
++    }
++}
++
++// A Home do grupo é financeira (receitas x despesas). O Gestor de Frota não vê caixa,
++// então ganha a sua própria Home quando o módulo de frota existir.
++@Composable
++private fun HomeLogisticaPlaceholder(onCategorias:()->Unit,onFormas:()->Unit) {
++    Column(
++        modifier = Modifier.fillMaxSize().padding(24.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
++        verticalArrangement = Arrangement.Center,
++    ) {
++        androidx.compose.material3.TextButton(onClick=onCategorias) {Text("Categorias")}
++        androidx.compose.material3.TextButton(onClick=onFormas) {Text("Formas de pagamento")}
++        Text("Início — Frota", style = MaterialTheme.typography.headlineSmall)
++        Spacer(Modifier.height(8.dp))
++        Text(
++            "Veículos em viagem, custo por km e alertas de frota aparecem aqui.",
++            style = MaterialTheme.typography.bodyMedium,
++            textAlign = TextAlign.Center,
++        )
++    }
++}
++
++@Composable
++private fun GenericPlaceholder(label: String) {
++    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
++        Text(label, style = MaterialTheme.typography.headlineSmall)
++    }
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/MainActivity.kt b/app/src/main/java/com/fleetflow/mobile/MainActivity.kt
+index 9a8d037..97f2ff5 100644
+--- a/app/src/main/java/com/fleetflow/mobile/MainActivity.kt
++++ b/app/src/main/java/com/fleetflow/mobile/MainActivity.kt
+@@ -4,45 +4,76 @@ import android.os.Bundle
+ import androidx.activity.ComponentActivity
+ import androidx.activity.compose.setContent
+ import androidx.activity.enableEdgeToEdge
+-import androidx.compose.runtime.*
+-import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
++import androidx.compose.runtime.LaunchedEffect
++import androidx.compose.runtime.getValue
++import androidx.compose.runtime.mutableStateOf
++import androidx.compose.runtime.remember
++import androidx.compose.runtime.rememberCoroutineScope
++import androidx.compose.runtime.setValue
++import com.fleetflow.mobile.data.local.AppDatabase
++import com.fleetflow.mobile.data.model.UserResponseDto
++import com.fleetflow.mobile.data.repository.AuthRepository
+ import com.fleetflow.mobile.ui.screens.AguardandoScreen
+-import com.fleetflow.mobile.ui.screens.HomeScreen
+ import com.fleetflow.mobile.ui.screens.LoginScreen
+-import com.fleetflow.mobile.ui.screens.PerfilScreen
+-import com.fleetflow.mobile.ui.screens.UsuariosScreen
++import com.fleetflow.mobile.ui.screens.MovimentacaoRepo
+ import com.fleetflow.mobile.ui.screens.WelcomeScreen
+ import com.fleetflow.mobile.ui.theme.FleetFlowTheme
++import kotlinx.coroutines.launch
+ 
++// Antes do login, o MainActivity decide a tela. Depois, quem manda é o FleetFlowApp.
+ sealed class Tela {
+     object Boasvindas : Tela()
+     object Login : Tela()
+     object Aguardando : Tela()
+-    object Home : Tela()
+-    object Perfil : Tela()
+-    object Usuarios : Tela()
+-    object AcessoNegado : Tela()
++    object App : Tela()
+ }
+ 
+ class MainActivity : ComponentActivity() {
+     override fun onCreate(savedInstanceState: Bundle?) {
+         super.onCreate(savedInstanceState)
+         enableEdgeToEdge()
++
++
++
++        com.fleetflow.mobile.data.repository.FinanceRepository.init(applicationContext)
+         setContent {
+             FleetFlowTheme {
++                val authRepository = remember { AuthRepository(applicationContext) }
++                val scope = rememberCoroutineScope()
++
+                 var telaAtual by remember { mutableStateOf<Tela>(Tela.Boasvindas) }
++                var usuario by remember { mutableStateOf<UserResponseDto?>(null) }
++
++                fun sair() {
++                    scope.launch { authRepository.logout() }
++                    MovimentacaoRepo.clear()
++                    usuario = null
++                    telaAtual = Tela.Login
++                }
+ 
++                LaunchedEffect(Unit) {
++                    if (authRepository.isLoggedIn()) {
++                        authRepository.getCurrentUser().onSuccess { usuario=it; telaAtual=Tela.App }
++                            .onFailure { telaAtual=Tela.Login }
++                    }
++                }
+                 when (telaAtual) {
+                     is Tela.Boasvindas -> WelcomeScreen(onComecarClick = { telaAtual = Tela.Login })
+-                    is Tela.Login -> LoginScreen(onLoginSuccess = { telaAtual = Tela.Home })
+-                    is Tela.Aguardando -> AguardandoScreen(onSairClick = { telaAtual = Tela.Login })
+-                    is Tela.Home -> HomeScreen(
+-                        onPerfilClick = { telaAtual = Tela.Perfil },
+-                        onUsuariosClick = { telaAtual = Tela.Usuarios }
++
++                    is Tela.Login -> LoginScreen(
++                        onAccountPending = {telaAtual=Tela.Aguardando},
++                        onUserLoginSuccess = { user ->
++                            usuario = user
++                            telaAtual = if (user.status == "AguardandoAprovacao") Tela.Aguardando else Tela.App
++                        }
+                     )
+-                    is Tela.Perfil -> PerfilScreen(onSairClick = { telaAtual = Tela.Login })
+-                    is Tela.Usuarios -> UsuariosScreen(onVoltarClick = { telaAtual = Tela.Home })
+-                    is Tela.AcessoNegado -> AcessoNegadoScreen(onVoltarClick = { telaAtual = Tela.Home })
++
++                    is Tela.Aguardando -> AguardandoScreen(onSairClick = { sair() })
++
++                    // A partir daqui, as abas vêm do perfil que o backend mandou.
++                    is Tela.App -> usuario?.let { u ->
++                        FleetFlowApp(usuario = u, onLogout = { sair() })
++                    }
+                 }
+             }
+         }
+diff --git a/app/src/main/java/data/MockData.kt b/app/src/main/java/com/fleetflow/mobile/data/MockData.kt
+similarity index 100%
+rename from app/src/main/java/data/MockData.kt
+rename to app/src/main/java/com/fleetflow/mobile/data/MockData.kt
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/ApiClient.kt b/app/src/main/java/com/fleetflow/mobile/data/api/ApiClient.kt
+index 7dbf731..f50f25d 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/api/ApiClient.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/api/ApiClient.kt
+@@ -1,6 +1,7 @@
+ package com.fleetflow.mobile.data.api
+ 
+ import android.content.Context
++import com.fleetflow.mobile.BuildConfig
+ import com.fleetflow.mobile.data.auth.TokenManager
+ import okhttp3.OkHttpClient
+ import okhttp3.logging.HttpLoggingInterceptor
+@@ -10,8 +11,9 @@ import java.util.concurrent.TimeUnit
+ 
+ object ApiClient {
+ 
+-    // Configurable base URL: 10.0.2.2 points to localhost (backend) from Android Emulator
+-    private const val DEFAULT_BASE_URL = "http://10.0.2.2:8080/"
++    // 10.0.2.2 aponta para o localhost da máquina host a partir do emulador Android.
++    // A API Node fica na porta 3000 (ver src/server.js / .env).
++    private val DEFAULT_BASE_URL = BuildConfig.API_BASE_URL
+ 
+     @Volatile
+     private var retrofit: Retrofit? = null
+@@ -44,7 +46,7 @@ object ApiClient {
+         val tokenManager = TokenManager(context)
+ 
+         val loggingInterceptor = HttpLoggingInterceptor().apply {
+-            level = HttpLoggingInterceptor.Level.BODY
++            level = if(BuildConfig.DEBUG) HttpLoggingInterceptor.Level.BASIC else HttpLoggingInterceptor.Level.NONE
+         }
+ 
+         val okHttpClient = OkHttpClient.Builder()
+@@ -52,8 +54,8 @@ object ApiClient {
+             .readTimeout(15, TimeUnit.SECONDS)
+             .writeTimeout(15, TimeUnit.SECONDS)
+             .addInterceptor(AuthInterceptor(tokenManager))
++            .authenticator(SessionAuthenticator(context.applicationContext))
+             .addInterceptor(loggingInterceptor)
+-            .authenticator(TokenAuthenticator(tokenManager) { getAuthApi(context) })
+             .build()
+ 
+         return Retrofit.Builder()
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/AuthApi.kt b/app/src/main/java/com/fleetflow/mobile/data/api/AuthApi.kt
+index 925c633..ff368c0 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/api/AuthApi.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/api/AuthApi.kt
+@@ -1,27 +1,32 @@
+ package com.fleetflow.mobile.data.api
+ 
+ import com.fleetflow.mobile.data.model.AuthResponseDto
++import com.fleetflow.mobile.data.model.DevLoginRequestDto
+ import com.fleetflow.mobile.data.model.GoogleLoginRequestDto
+-import com.fleetflow.mobile.data.model.LogoutRequestDto
+-import com.fleetflow.mobile.data.model.RefreshTokenRequestDto
++import com.fleetflow.mobile.data.model.MeResponseDto
+ import retrofit2.Response
+ import retrofit2.http.Body
++import retrofit2.http.GET
+ import retrofit2.http.POST
+ 
+ interface AuthApi {
++    @POST("api/auth/refresh")
++    suspend fun refresh(@Body request: com.fleetflow.mobile.data.model.RefreshRequestDto): Response<AuthResponseDto>
++    @POST("api/auth/logout")
++    suspend fun logout(@Body request: com.fleetflow.mobile.data.model.RefreshRequestDto): Response<Unit>
++
+ 
+     @POST("api/auth/google")
+     suspend fun googleLogin(
+         @Body request: GoogleLoginRequestDto
+     ): Response<AuthResponseDto>
+ 
+-    @POST("api/auth/refresh")
+-    suspend fun refreshToken(
+-        @Body request: RefreshTokenRequestDto
++    // Só funciona se a API estiver com DEV_LOGIN=true (ambiente local de testes).
++    @POST("api/auth/dev-login")
++    suspend fun devLogin(
++        @Body request: DevLoginRequestDto
+     ): Response<AuthResponseDto>
+ 
+-    @POST("api/auth/logout")
+-    suspend fun logout(
+-        @Body request: LogoutRequestDto
+-    ): Response<Map<String, Any>>
++    @GET("api/auth/me")
++    suspend fun me(): Response<MeResponseDto>
+ }
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/AuthInterceptor.kt b/app/src/main/java/com/fleetflow/mobile/data/api/AuthInterceptor.kt
+index 69ee0c8..8d881d3 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/api/AuthInterceptor.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/api/AuthInterceptor.kt
+@@ -12,7 +12,7 @@ class AuthInterceptor(private val tokenManager: TokenManager) : Interceptor {
+         val path = request.url.encodedPath
+ 
+         // Skip adding Authorization header for public authentication endpoints
+-        if (path.contains("/api/auth/google") || path.contains("/api/auth/refresh") || path.contains("/api/auth/logout")) {
++        if (path.contains("/api/auth/google") || path.contains("/api/auth/dev-login")) {
+             return chain.proceed(request)
+         }
+ 
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/FinanceApi.kt b/app/src/main/java/com/fleetflow/mobile/data/api/FinanceApi.kt
+new file mode 100644
+index 0000000..e912ea8
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/api/FinanceApi.kt
+@@ -0,0 +1,25 @@
++package com.fleetflow.mobile.data.api
++
++import retrofit2.Response
++import retrofit2.http.*
++import okhttp3.RequestBody
++import com.fleetflow.mobile.data.model.*
++
++interface FinanceApi {
++    @GET("api/categorias") suspend fun categorias(): Response<DataDto<CategoriaDto>>
++    @POST("api/categorias") suspend fun criarCategoria(@Body body:Map<String,String>): Response<CategoriaDto>
++    @PATCH("api/categorias/{id}") suspend fun editarCategoria(@Path("id") id:String,@Body body:Map<String,String>):Response<CategoriaDto>
++    @DELETE("api/categorias/{id}") suspend fun removerCategoria(@Path("id") id:String):Response<Unit>
++    @GET("api/formas-pagamento") suspend fun formas():Response<DataDto<FormaDto>>
++    @POST("api/formas-pagamento") suspend fun criarForma(@Body body:Map<String,String>):Response<FormaDto>
++    @PATCH("api/formas-pagamento/{id}") suspend fun editarForma(@Path("id") id:String,@Body body:Map<String,String>):Response<FormaDto>
++    @DELETE("api/formas-pagamento/{id}") suspend fun removerForma(@Path("id") id:String):Response<Unit>
++    @GET("api/movimentacoes") suspend fun movimentacoes(@QueryMap query:Map<String,String>):Response<MovPageDto>
++    @GET("api/movimentacoes/saldo") suspend fun saldo():Response<SaldoDto>
++    @POST("api/movimentacoes") suspend fun criar(@Body body:MovRequestDto):Response<MovDto>
++    @PATCH("api/movimentacoes/{id}") suspend fun editar(@Path("id") id:String,@Body body:MovRequestDto):Response<MovDto>
++    @DELETE("api/movimentacoes/{id}") suspend fun remover(@Path("id") id:String):Response<Unit>
++    @POST("api/movimentacoes/{id}/pagar") suspend fun pagar(@Path("id") id:String,@Body body:Map<String,String>):Response<MovDto>
++    @PUT("api/movimentacoes/{id}/comprovante") suspend fun comprovante(@Path("id") id:String,@Body bytes:RequestBody):Response<Map<String,String>>
++    @POST("api/dividas") suspend fun divida(@Body body:DividaRequestDto):Response<Map<String,Any>>
++}
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/SessionAuthenticator.kt b/app/src/main/java/com/fleetflow/mobile/data/api/SessionAuthenticator.kt
+new file mode 100644
+index 0000000..b21eeb9
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/api/SessionAuthenticator.kt
+@@ -0,0 +1,39 @@
++package com.fleetflow.mobile.data.api
++
++import android.content.Context
++import com.fleetflow.mobile.BuildConfig
++import com.fleetflow.mobile.data.auth.TokenManager
++import com.fleetflow.mobile.data.model.RefreshRequestDto
++import kotlinx.coroutines.runBlocking
++import okhttp3.Authenticator
++import okhttp3.Request
++import okhttp3.Response
++import okhttp3.Route
++import okhttp3.OkHttpClient
++import retrofit2.Retrofit
++import retrofit2.converter.gson.GsonConverterFactory
++
++class SessionAuthenticator(context:Context):Authenticator {
++    private val manager=TokenManager(context)
++    private val api=Retrofit.Builder().baseUrl(BuildConfig.API_BASE_URL)
++        .client(OkHttpClient.Builder().build()).addConverterFactory(GsonConverterFactory.create()).build().create(AuthApi::class.java)
++    override fun authenticate(route:Route?,response:Response):Request? {
++        if(response.priorResponse!=null || response.request.url.encodedPath.contains("/auth/"))return null
++        return synchronized(LOCK) {
++            runBlocking {
++                val current=manager.getAccessToken()
++                if(current!=null && response.request.header("Authorization")!="Bearer $current")
++                    return@runBlocking response.request.newBuilder().header("Authorization","Bearer $current").build()
++                val refresh=manager.getRefreshToken()?:return@runBlocking null
++                try {
++                    val result=api.refresh(RefreshRequestDto(refresh))
++                    val data=result.body()
++                    if(!result.isSuccessful || data==null) {if(result.code() in listOf(401,403))manager.clearTokens();return@runBlocking null}
++                    manager.saveToken(data.token);data.refreshToken?.let {manager.saveRefreshToken(it)}
++                    response.request.newBuilder().header("Authorization","Bearer ${data.token}").build()
++                } catch(e:Exception) {null}
++            }
++        }
++    }
++    companion object {private val LOCK=Any()}
++}
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/TokenAuthenticator.kt b/app/src/main/java/com/fleetflow/mobile/data/api/TokenAuthenticator.kt
+deleted file mode 100644
+index bd30ebd..0000000
+--- a/app/src/main/java/com/fleetflow/mobile/data/api/TokenAuthenticator.kt
++++ /dev/null
+@@ -1,55 +0,0 @@
+-package com.fleetflow.mobile.data.api
+-
+-import com.fleetflow.mobile.data.auth.TokenManager
+-import com.fleetflow.mobile.data.model.RefreshTokenRequestDto
+-import kotlinx.coroutines.runBlocking
+-import okhttp3.Authenticator
+-import okhttp3.Request
+-import okhttp3.Response
+-import okhttp3.Route
+-
+-class TokenAuthenticator(
+-    private val tokenManager: TokenManager,
+-    private val authApiProvider: () -> AuthApi
+-) : Authenticator {
+-
+-    override fun authenticate(route: Route?, response: Response): Request? {
+-        // Prevent infinite refresh loop if refresh itself returned 401
+-        if (response.request.url.encodedPath.contains("/api/auth/refresh")) {
+-            return null
+-        }
+-
+-        synchronized(this) {
+-            val currentRefreshToken = runBlocking { tokenManager.getRefreshToken() } ?: return null
+-
+-            return try {
+-                val refreshResponse = runBlocking {
+-                    authApiProvider().refreshToken(RefreshTokenRequestDto(currentRefreshToken))
+-                }
+-
+-                if (refreshResponse.isSuccessful && refreshResponse.body() != null) {
+-                    val newAuth = refreshResponse.body()!!
+-                    runBlocking {
+-                        tokenManager.saveTokens(newAuth.accessToken, newAuth.refreshToken)
+-                        tokenManager.saveUserInfo(
+-                            newAuth.user.id,
+-                            newAuth.user.name,
+-                            newAuth.user.email,
+-                            newAuth.user.role
+-                        )
+-                    }
+-
+-                    response.request.newBuilder()
+-                        .header("Authorization", "Bearer ${newAuth.accessToken}")
+-                        .build()
+-                } else {
+-                    runBlocking { tokenManager.clearTokens() }
+-                    null
+-                }
+-            } catch (ex: Exception) {
+-                runBlocking { tokenManager.clearTokens() }
+-                null
+-            }
+-        }
+-    }
+-}
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/api/UserApi.kt b/app/src/main/java/com/fleetflow/mobile/data/api/UserApi.kt
+index 01c0248..5ee4980 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/api/UserApi.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/api/UserApi.kt
+@@ -1,29 +1,30 @@
+ package com.fleetflow.mobile.data.api
+ 
+-import com.fleetflow.mobile.data.model.UpdateRoleRequestDto
++import com.fleetflow.mobile.data.model.PerfisResponseDto
++import com.fleetflow.mobile.data.model.UpdateUsuarioRequestDto
+ import com.fleetflow.mobile.data.model.UserResponseDto
++import com.fleetflow.mobile.data.model.UsuariosPageDto
+ import retrofit2.Response
+ import retrofit2.http.Body
+ import retrofit2.http.GET
+ import retrofit2.http.PATCH
+ import retrofit2.http.Path
++import retrofit2.http.Query
+ 
+ interface UserApi {
+ 
+-    @GET("api/users/me")
+-    suspend fun getMe(): Response<UserResponseDto>
++    @GET("api/usuarios")
++    suspend fun getUsuarios(
++        @Query("page") page: Int = 1,
++        @Query("pageSize") pageSize: Int = 100
++    ): Response<UsuariosPageDto>
+ 
+-    @GET("api/users")
+-    suspend fun getUsers(): Response<List<UserResponseDto>>
+-
+-    @PATCH("api/users/{id}/approve")
+-    suspend fun approveUser(
+-        @Path("id") id: String
+-    ): Response<UserResponseDto>
+-
+-    @PATCH("api/users/{id}/role")
+-    suspend fun updateUserRole(
++    @PATCH("api/usuarios/{id}")
++    suspend fun updateUsuario(
+         @Path("id") id: String,
+-        @Body request: UpdateRoleRequestDto
++        @Body request: UpdateUsuarioRequestDto
+     ): Response<UserResponseDto>
++
++    @GET("api/perfis")
++    suspend fun getPerfis(): Response<PerfisResponseDto>
+ }
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/auth/AuthorizationManager.kt b/app/src/main/java/com/fleetflow/mobile/data/auth/AuthorizationManager.kt
+index da20b8d..2836fe3 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/auth/AuthorizationManager.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/auth/AuthorizationManager.kt
+@@ -1,19 +1,19 @@
+ package com.fleetflow.mobile.data.auth
+ 
+-class AuthorizationManager(private val role: String?) {
++// Espelha a matriz de permissões por perfil que a API devolve em
++// GET /api/auth/me (ver src/permissions.js no backend): "E" = ver e editar,
++// "L" = somente leitura, ausente/null = sem acesso.
++class AuthorizationManager(private val permissoes: Map<String, String?>) {
+ 
+-    fun canManageUsers(): Boolean {
+-        val upperRole = role?.uppercase() ?: return false
+-        return upperRole == "ADMINISTRATOR" || upperRole == "FLEET_MANAGER" || upperRole == "FINANCIAL"
+-    }
++    private fun nivel(modulo: String): String? = permissoes[modulo]
+ 
+-    fun canApproveUsers(): Boolean {
+-        val upperRole = role?.uppercase() ?: return false
+-        return upperRole == "ADMINISTRATOR" || upperRole == "FLEET_MANAGER"
+-    }
++    fun podeLer(modulo: String): Boolean = nivel(modulo) == "E" || nivel(modulo) == "L"
+ 
+-    fun canChangeUserRole(): Boolean {
+-        val upperRole = role?.uppercase() ?: return false
+-        return upperRole == "ADMINISTRATOR"
+-    }
++    fun podeEditar(modulo: String): Boolean = nivel(modulo) == "E"
++
++    fun canManageUsers(): Boolean = podeEditar("usuarios")
++
++    fun canApproveUsers(): Boolean = podeEditar("usuarios")
++
++    fun canChangeUserRole(): Boolean = podeEditar("usuarios")
+ }
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/auth/TokenCipher.kt b/app/src/main/java/com/fleetflow/mobile/data/auth/TokenCipher.kt
+new file mode 100644
+index 0000000..25487b9
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/auth/TokenCipher.kt
+@@ -0,0 +1,36 @@
++package com.fleetflow.mobile.data.auth
++
++import android.security.keystore.KeyGenParameterSpec
++import android.security.keystore.KeyProperties
++import android.util.Base64
++import java.security.KeyStore
++import javax.crypto.Cipher
++import javax.crypto.KeyGenerator
++import javax.crypto.SecretKey
++import javax.crypto.spec.GCMParameterSpec
++
++/** Chave não exportável do Android Keystore; DataStore guarda somente ciphertext. */
++object TokenCipher {
++    private const val ALIAS="fleetflow_session_v1"
++    private fun key():SecretKey = synchronized(this) {
++        val store=KeyStore.getInstance("AndroidKeyStore").apply {load(null)}
++        (store.getKey(ALIAS,null) as? SecretKey) ?: KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES,"AndroidKeyStore").run {
++            init(KeyGenParameterSpec.Builder(ALIAS,KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
++                .setBlockModes(KeyProperties.BLOCK_MODE_GCM).setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE).build())
++            generateKey()
++        }
++    }
++    fun encrypt(value:String):String {
++        val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.ENCRYPT_MODE,key())
++        return "v1:"+Base64.encodeToString(cipher.iv+cipher.doFinal(value.toByteArray(Charsets.UTF_8)),Base64.NO_WRAP)
++    }
++    fun decrypt(value:String?):String? {
++        if(value==null)return null
++        if(!value.startsWith("v1:"))return value // migração de versão anterior
++        return runCatching {
++            val bytes=Base64.decode(value.removePrefix("v1:"),Base64.NO_WRAP)
++            val cipher=Cipher.getInstance("AES/GCM/NoPadding");cipher.init(Cipher.DECRYPT_MODE,key(),GCMParameterSpec(128,bytes.copyOfRange(0,12)))
++            String(cipher.doFinal(bytes.copyOfRange(12,bytes.size)),Charsets.UTF_8)
++        }.getOrNull()
++    }
++}
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/auth/TokenManager.kt b/app/src/main/java/com/fleetflow/mobile/data/auth/TokenManager.kt
+index 23af8cc..947c83a 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/auth/TokenManager.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/auth/TokenManager.kt
+@@ -6,6 +6,8 @@ import androidx.datastore.preferences.core.Preferences
+ import androidx.datastore.preferences.core.edit
+ import androidx.datastore.preferences.core.stringPreferencesKey
+ import androidx.datastore.preferences.preferencesDataStore
++import com.google.gson.Gson
++import com.google.gson.reflect.TypeToken
+ import kotlinx.coroutines.flow.Flow
+ import kotlinx.coroutines.flow.first
+ import kotlinx.coroutines.flow.map
+@@ -15,39 +17,46 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "fl
+ class TokenManager(private val context: Context) {
+ 
+     companion object {
+-        val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
+         val REFRESH_TOKEN_KEY = stringPreferencesKey("refresh_token")
++        val ACCESS_TOKEN_KEY = stringPreferencesKey("access_token")
+         val USER_ID_KEY = stringPreferencesKey("user_id")
+         val USER_NAME_KEY = stringPreferencesKey("user_name")
+         val USER_EMAIL_KEY = stringPreferencesKey("user_email")
+-        val USER_ROLE_KEY = stringPreferencesKey("user_role")
++        val USER_PERFIL_KEY = stringPreferencesKey("user_perfil")
++        val USER_STATUS_KEY = stringPreferencesKey("user_status")
++        val PERMISSOES_KEY = stringPreferencesKey("permissoes")
++        private val gson = Gson()
+     }
+ 
+     val accessToken: Flow<String?> = context.dataStore.data.map { preferences ->
+-        preferences[ACCESS_TOKEN_KEY]
++        TokenCipher.decrypt(preferences[ACCESS_TOKEN_KEY])
+     }
+ 
+-    val refreshToken: Flow<String?> = context.dataStore.data.map { preferences ->
+-        preferences[REFRESH_TOKEN_KEY]
+-    }
+-
+-    suspend fun getAccessToken(): String? = context.dataStore.data.map { it[ACCESS_TOKEN_KEY] }.first()
+-
+-    suspend fun getRefreshToken(): String? = context.dataStore.data.map { it[REFRESH_TOKEN_KEY] }.first()
++    suspend fun getAccessToken(): String? = context.dataStore.data.map { TokenCipher.decrypt(it[ACCESS_TOKEN_KEY]) }.first()
+ 
+-    suspend fun saveTokens(accessToken: String, refreshToken: String) {
++    suspend fun getRefreshToken(): String? = context.dataStore.data.map {TokenCipher.decrypt(it[REFRESH_TOKEN_KEY])}.first()
++    suspend fun saveRefreshToken(token:String) {context.dataStore.edit {it[REFRESH_TOKEN_KEY]=TokenCipher.encrypt(token)}}
++    suspend fun saveToken(token: String) {
+         context.dataStore.edit { preferences ->
+-            preferences[ACCESS_TOKEN_KEY] = accessToken
+-            preferences[REFRESH_TOKEN_KEY] = refreshToken
++            preferences[ACCESS_TOKEN_KEY] = TokenCipher.encrypt(token)
+         }
+     }
+ 
+-    suspend fun saveUserInfo(id: String, name: String, email: String, role: String) {
++    suspend fun saveUserInfo(
++        id: String,
++        name: String,
++        email: String,
++        perfilNome: String,
++        status: String,
++        permissoes: Map<String, String?>
++    ) {
+         context.dataStore.edit { preferences ->
+             preferences[USER_ID_KEY] = id
+             preferences[USER_NAME_KEY] = name
+             preferences[USER_EMAIL_KEY] = email
+-            preferences[USER_ROLE_KEY] = role
++            preferences[USER_PERFIL_KEY] = perfilNome
++            preferences[USER_STATUS_KEY] = status
++            preferences[PERMISSOES_KEY] = gson.toJson(permissoes)
+         }
+     }
+ 
+@@ -55,16 +64,26 @@ class TokenManager(private val context: Context) {
+ 
+     suspend fun getUserEmail(): String? = context.dataStore.data.map { it[USER_EMAIL_KEY] }.first()
+ 
+-    suspend fun getUserRole(): String? = context.dataStore.data.map { it[USER_ROLE_KEY] }.first()
++    suspend fun getUserPerfil(): String? = context.dataStore.data.map { it[USER_PERFIL_KEY] }.first()
++
++    suspend fun getUserStatus(): String? = context.dataStore.data.map { it[USER_STATUS_KEY] }.first()
++
++    suspend fun getPermissoes(): Map<String, String?> {
++        val json = context.dataStore.data.map { it[PERMISSOES_KEY] }.first() ?: return emptyMap()
++        val type = object : TypeToken<Map<String, String?>>() {}.type
++        return gson.fromJson(json, type) ?: emptyMap()
++    }
+ 
+     suspend fun clearTokens() {
+         context.dataStore.edit { preferences ->
+-            preferences.remove(ACCESS_TOKEN_KEY)
+             preferences.remove(REFRESH_TOKEN_KEY)
++            preferences.remove(ACCESS_TOKEN_KEY)
+             preferences.remove(USER_ID_KEY)
+             preferences.remove(USER_NAME_KEY)
+             preferences.remove(USER_EMAIL_KEY)
+-            preferences.remove(USER_ROLE_KEY)
++            preferences.remove(USER_PERFIL_KEY)
++            preferences.remove(USER_STATUS_KEY)
++            preferences.remove(PERMISSOES_KEY)
+         }
+     }
+ }
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/local/AppDatabase.kt b/app/src/main/java/com/fleetflow/mobile/data/local/AppDatabase.kt
+new file mode 100644
+index 0000000..70933a5
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/local/AppDatabase.kt
+@@ -0,0 +1,25 @@
++package com.fleetflow.mobile.data.local
++
++import android.content.Context
++import androidx.room.Database
++import androidx.room.Room
++import androidx.room.RoomDatabase
++
++@Database(entities = [MovimentacaoEntity::class], version = 1, exportSchema = false)
++abstract class AppDatabase : RoomDatabase() {
++
++    abstract fun movimentacaoDao(): MovimentacaoDao
++
++    companion object {
++        @Volatile private var INSTANCE: AppDatabase? = null
++
++        fun get(context: Context): AppDatabase =
++            INSTANCE ?: synchronized(this) {
++                INSTANCE ?: Room.databaseBuilder(
++                    context.applicationContext,
++                    AppDatabase::class.java,
++                    "fleetflow.db"
++                ).build().also { INSTANCE = it }
++            }
++    }
++}
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/local/MovimentacaoDao.kt b/app/src/main/java/com/fleetflow/mobile/data/local/MovimentacaoDao.kt
+new file mode 100644
+index 0000000..81bd35a
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/local/MovimentacaoDao.kt
+@@ -0,0 +1,24 @@
++package com.fleetflow.mobile.data.local
++
++import androidx.room.Dao
++import androidx.room.Insert
++import androidx.room.OnConflictStrategy
++import androidx.room.Query
++import kotlinx.coroutines.flow.Flow
++
++@Dao
++interface MovimentacaoDao {
++
++    // Mais recente primeiro.
++    @Query("SELECT * FROM movimentacoes ORDER BY criadoEm DESC")
++    fun observarTodas(): Flow<List<MovimentacaoEntity>>
++
++    @Query("SELECT COUNT(*) FROM movimentacoes")
++    suspend fun contar(): Int
++
++    @Insert(onConflict = OnConflictStrategy.REPLACE)
++    suspend fun inserir(m: MovimentacaoEntity)
++
++    @Query("DELETE FROM movimentacoes")
++    suspend fun limparTudo()
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/local/MovimentacaoEntity.kt b/app/src/main/java/com/fleetflow/mobile/data/local/MovimentacaoEntity.kt
+new file mode 100644
+index 0000000..f65de81
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/local/MovimentacaoEntity.kt
+@@ -0,0 +1,18 @@
++package com.fleetflow.mobile.data.local
++
++import androidx.room.Entity
++import androidx.room.PrimaryKey
++import java.util.UUID
++
++@Entity(tableName = "movimentacoes")
++data class MovimentacaoEntity(
++    @PrimaryKey val id: String = UUID.randomUUID().toString(),
++    val descricao: String,
++    val valorCentavos: Long,
++    val tipo: String,            // "ENTRADA" / "SAIDA"
++    val categoria: String,
++    val formaPagamento: String,
++    val data: String,
++    val status: String,          // "PENDENTE" / "PAGO"
++    val criadoEm: Long,          // Data de Inclusão, em milissegundos. A lista é ordenada por ela.
++)
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/model/FinanceModels.kt b/app/src/main/java/com/fleetflow/mobile/data/model/FinanceModels.kt
+new file mode 100644
+index 0000000..bacc770
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/model/FinanceModels.kt
+@@ -0,0 +1,14 @@
++package com.fleetflow.mobile.data.model
++
++data class DataDto<T>(val data:List<T>)
++data class CategoriaDto(val id:String,val titulo:String,val tipo:String,val ehSistema:Boolean=false)
++data class FormaDto(val id:String,val nome:String,val ehSistema:Boolean=false)
++data class MovDto(val id:String,val descricao:String,val valor:String,val categoria:CategoriaDto,val formaPagamento:FormaDto,
++    val status:String,val dataVencimento:String?,val dataPagamento:String?,val syncVersion:Int)
++data class TotaisDto(val entradas:String,val saidas:String)
++data class MovPageDto(val data:List<MovDto>,val page:Int,val totalPages:Int,val total:Int,val totais:TotaisDto)
++data class SaldoDto(val saldoAtual:String,val saldoPrevisto:String,val receitasPagas:String,val despesasPagas:String,val aReceber:String,val aPagar:String)
++data class MovRequestDto(val valor:String,val descricao:String,val categoriaId:String,val formaPagamentoId:String,
++    val status:String,val dataVencimento:String?,val dataPagamento:String?,val syncVersion:Int?=null)
++data class DividaRequestDto(val descricao:String,val categoriaId:String,val formaPagamentoId:String,val quantidadeParcelas:Int,
++    val valorParcela:String,val dataVencimentoPrimeira:String,val valorQuitacaoAntecipada:String?=null)
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/model/NetworkModels.kt b/app/src/main/java/com/fleetflow/mobile/data/model/NetworkModels.kt
+index d7dfe46..26ac5a3 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/model/NetworkModels.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/model/NetworkModels.kt
+@@ -4,44 +4,66 @@ data class GoogleLoginRequestDto(
+     val idToken: String
+ )
+ 
+-data class RefreshTokenRequestDto(
+-    val refreshToken: String
++data class DevLoginRequestDto(
++    val email: String
+ )
+ 
+-data class LogoutRequestDto(
+-    val refreshToken: String
++data class UpdateUsuarioRequestDto(
++    val perfilId: String? = null,
++    val status: String? = null,
++    val syncVersion: Int? = null
+ )
+ 
+-data class UpdateRoleRequestDto(
+-    val role: String
++data class PerfilDto(
++    val id: String,
++    val nome: String
+ )
+ 
+ data class AuthResponseDto(
+-    val accessToken: String,
+-    val refreshToken: String,
++    val token: String,
++    val refreshToken: String?,
+     val tokenType: String,
+-    val expiresIn: Long,
+-    val user: UserResponseDto
++    val expiresIn: String,
++    val usuario: UserResponseDto,
++    val permissoes: Map<String, String?>
++)
++
++data class MeResponseDto(
++    val usuario: UserResponseDto,
++    val permissoes: Map<String, String?>
+ )
+ 
+ data class UserResponseDto(
+     val id: String,
+-    val googleId: String,
+-    val name: String,
++    val nome: String,
+     val email: String,
+-    val photoUrl: String?,
+-    val role: String,
+-    val status: String
++    val fotoUrl: String?,
++    val perfil: PerfilDto,
++    val status: String,
++    val categoriaCnh: String?,
++    val validadeCnh: String?
++)
++
++data class UsuariosPageDto(
++    val data: List<UserResponseDto>,
++    val page: Int,
++    val pageSize: Int,
++    val total: Int,
++    val totalPages: Int
++)
++
++data class PerfisResponseDto(
++    val data: List<PerfilDto>
+ )
+ 
+ data class ErrorResponseDto(
+-    val success: Boolean,
+-    val error: ErrorDetailsDto?,
+-    val traceId: String?
++    val error: ErrorDetailsDto?
+ )
+ 
+ data class ErrorDetailsDto(
+     val code: String,
+     val message: String,
+-    val details: Map<String, List<String>>?
++    val details: List<Map<String, String>>?
+ )
++
++data class RefreshRequestDto(val refreshToken:String)
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/repository/AuthRepository.kt b/app/src/main/java/com/fleetflow/mobile/data/repository/AuthRepository.kt
+index 3849249..b62d036 100644
+--- a/app/src/main/java/com/fleetflow/mobile/data/repository/AuthRepository.kt
++++ b/app/src/main/java/com/fleetflow/mobile/data/repository/AuthRepository.kt
+@@ -3,118 +3,164 @@ package com.fleetflow.mobile.data.repository
+ import android.content.Context
+ import com.fleetflow.mobile.data.api.ApiClient
+ import com.fleetflow.mobile.data.auth.TokenManager
++import com.fleetflow.mobile.data.model.AuthResponseDto
++import com.fleetflow.mobile.data.model.DevLoginRequestDto
++import com.fleetflow.mobile.data.model.ErrorResponseDto
+ import com.fleetflow.mobile.data.model.GoogleLoginRequestDto
+-import com.fleetflow.mobile.data.model.LogoutRequestDto
+-import com.fleetflow.mobile.data.model.UpdateRoleRequestDto
++import com.fleetflow.mobile.data.model.PerfilDto
++import com.fleetflow.mobile.data.model.UpdateUsuarioRequestDto
+ import com.fleetflow.mobile.data.model.UserResponseDto
++import com.google.gson.Gson
+ import kotlinx.coroutines.Dispatchers
+ import kotlinx.coroutines.withContext
++import retrofit2.Response
++
++// Erro de login com o código devolvido pela API (ex.: ACCOUNT_PENDING,
++// ACCOUNT_BLOCKED, ACCOUNT_DISABLED), para a tela decidir para onde navegar.
++class ApiException(val code: String?, message: String) : Exception(message)
+ 
+ class AuthRepository(private val context: Context) {
+ 
+     private val authApi = ApiClient.getAuthApi(context)
+     private val userApi = ApiClient.getUserApi(context)
+     private val tokenManager = TokenManager(context)
++    private val gson = Gson()
++
++    private fun parseError(response: Response<*>): ApiException {
++        val body = response.errorBody()?.string()
++        val parsed = runCatching { gson.fromJson(body, ErrorResponseDto::class.java) }.getOrNull()
++        val detail = parsed?.error
++        return ApiException(detail?.code, detail?.message ?: "Erro ${response.code()}")
++    }
++
++    private suspend fun handleAuthResponse(response: Response<AuthResponseDto>): Result<UserResponseDto> {
++        if (response.isSuccessful && response.body() != null) {
++            val authData = response.body()!!
++            tokenManager.saveToken(authData.token)
++            authData.refreshToken?.let { tokenManager.saveRefreshToken(it) }
++            tokenManager.saveUserInfo(
++                authData.usuario.id,
++                authData.usuario.nome,
++                authData.usuario.email,
++                authData.usuario.perfil.nome,
++                authData.usuario.status,
++                authData.permissoes
++            )
++            return Result.success(authData.usuario)
++        }
++        return Result.failure(parseError(response))
++    }
+ 
+     suspend fun loginWithGoogle(idToken: String): Result<UserResponseDto> = withContext(Dispatchers.IO) {
+         try {
+-            val response = authApi.googleLogin(GoogleLoginRequestDto(idToken))
++            handleAuthResponse(authApi.googleLogin(GoogleLoginRequestDto(idToken)))
++        } catch (ex: Exception) {
++            Result.failure(ex)
++        }
++    }
++
++    // Login sem Google, só funciona com DEV_LOGIN=true na API (uso local/teste).
++    suspend fun loginDev(email: String): Result<UserResponseDto> = withContext(Dispatchers.IO) {
++        try {
++            handleAuthResponse(authApi.devLogin(DevLoginRequestDto(email)))
++        } catch (ex: Exception) {
++            Result.failure(ex)
++        }
++    }
++
++    suspend fun getCurrentUser(): Result<UserResponseDto> = withContext(Dispatchers.IO) {
++        try {
++            var response = authApi.me()
++            if(response.code()==401) {
++                val refresh=tokenManager.getRefreshToken()
++                if(refresh!=null) {
++                    val renewed=authApi.refresh(com.fleetflow.mobile.data.model.RefreshRequestDto(refresh))
++                    if(renewed.isSuccessful) {handleAuthResponse(renewed);response=authApi.me()}
++                }
++            }
+             if (response.isSuccessful && response.body() != null) {
+-                val authData = response.body()!!
+-                tokenManager.saveTokens(authData.accessToken, authData.refreshToken)
++                val me = response.body()!!
+                 tokenManager.saveUserInfo(
+-                    authData.user.id,
+-                    authData.user.name,
+-                    authData.user.email,
+-                    authData.user.role
++                    me.usuario.id,
++                    me.usuario.nome,
++                    me.usuario.email,
++                    me.usuario.perfil.nome,
++                    me.usuario.status,
++                    me.permissoes
+                 )
+-                Result.success(authData.user)
++                Result.success(me.usuario)
+             } else {
+-                Result.failure(Exception("Falha no login com Google: ${response.code()} ${response.message()}"))
++                Result.failure(parseError(response))
+             }
+         } catch (ex: Exception) {
+             Result.failure(ex)
+         }
+     }
+ 
+-    suspend fun getCurrentUser(): Result<UserResponseDto> = withContext(Dispatchers.IO) {
++    suspend fun getUsers(): Result<List<UserResponseDto>> = withContext(Dispatchers.IO) {
+         try {
+-            val response = userApi.getMe()
++            val response = userApi.getUsuarios()
+             if (response.isSuccessful && response.body() != null) {
+-                val user = response.body()!!
+-                tokenManager.saveUserInfo(user.id, user.name, user.email, user.role)
+-                Result.success(user)
+-            } else if (response.code() == 403) {
+-                Result.failure(Exception("Você não possui permissão para acessar este recurso."))
++                Result.success(response.body()!!.data)
+             } else {
+-                Result.failure(Exception("Erro ao buscar dados do usuário: ${response.code()}"))
++                Result.failure(parseError(response))
+             }
+         } catch (ex: Exception) {
+             Result.failure(ex)
+         }
+     }
+ 
+-    suspend fun getUsers(): Result<List<UserResponseDto>> = withContext(Dispatchers.IO) {
++    suspend fun getPerfis(): Result<List<PerfilDto>> = withContext(Dispatchers.IO) {
+         try {
+-            val response = userApi.getUsers()
++            val response = userApi.getPerfis()
+             if (response.isSuccessful && response.body() != null) {
+-                Result.success(response.body()!!)
+-            } else if (response.code() == 403) {
+-                Result.failure(Exception("Você não possui permissão para listar usuários."))
++                Result.success(response.body()!!.data)
+             } else {
+-                Result.failure(Exception("Erro ao listar usuários: ${response.code()}"))
++                Result.failure(parseError(response))
+             }
+         } catch (ex: Exception) {
+             Result.failure(ex)
+         }
+     }
+ 
++    // Aprovar = sair de "AguardandoAprovacao" para "Ativo".
+     suspend fun approveUser(id: String): Result<UserResponseDto> = withContext(Dispatchers.IO) {
+         try {
+-            val response = userApi.approveUser(id)
++            val response = userApi.updateUsuario(id, UpdateUsuarioRequestDto(status = "Ativo"))
+             if (response.isSuccessful && response.body() != null) {
+                 Result.success(response.body()!!)
+-            } else if (response.code() == 403) {
+-                Result.failure(Exception("Você não possui permissão para aprovar usuários."))
+             } else {
+-                Result.failure(Exception("Erro ao aprovar usuário: ${response.code()}"))
++                Result.failure(parseError(response))
+             }
+         } catch (ex: Exception) {
+             Result.failure(ex)
+         }
+     }
+ 
+-    suspend fun updateUserRole(id: String, role: String): Result<UserResponseDto> = withContext(Dispatchers.IO) {
++    suspend fun updateUserPerfil(id: String, perfilId: String): Result<UserResponseDto> = withContext(Dispatchers.IO) {
+         try {
+-            val response = userApi.updateUserRole(id, UpdateRoleRequestDto(role))
++            val response = userApi.updateUsuario(id, UpdateUsuarioRequestDto(perfilId = perfilId))
+             if (response.isSuccessful && response.body() != null) {
+                 Result.success(response.body()!!)
+-            } else if (response.code() == 403) {
+-                Result.failure(Exception("Você não possui permissão para alterar o perfil de usuários."))
+             } else {
+-                Result.failure(Exception("Erro ao alterar perfil do usuário: ${response.code()}"))
++                Result.failure(parseError(response))
+             }
+         } catch (ex: Exception) {
+             Result.failure(ex)
+         }
+     }
+ 
++    // Revoga refresh no servidor e limpa credenciais locais ao sair.
+     suspend fun logout(): Result<Boolean> = withContext(Dispatchers.IO) {
+-        try {
+-            val refreshToken = tokenManager.getRefreshToken()
+-            if (!refreshToken.isNullOrBlank()) {
+-                authApi.logout(LogoutRequestDto(refreshToken))
+-            }
+-            tokenManager.clearTokens()
+-            Result.success(true)
+-        } catch (ex: Exception) {
+-            tokenManager.clearTokens()
+-            Result.success(true)
+-        }
++        tokenManager.getRefreshToken()?.let { runCatching { authApi.logout(com.fleetflow.mobile.data.model.RefreshRequestDto(it)) } }
++        tokenManager.clearTokens()
++        Result.success(true)
+     }
+ 
+     suspend fun isLoggedIn(): Boolean {
+         val token = tokenManager.getAccessToken()
+         return !token.isNullOrBlank()
+     }
++
++    suspend fun getStoredPermissoes(): Map<String, String?> = tokenManager.getPermissoes()
+ }
+diff --git a/app/src/main/java/com/fleetflow/mobile/data/repository/FinanceRepository.kt b/app/src/main/java/com/fleetflow/mobile/data/repository/FinanceRepository.kt
+new file mode 100644
+index 0000000..c879511
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/data/repository/FinanceRepository.kt
+@@ -0,0 +1,95 @@
++package com.fleetflow.mobile.data.repository
++
++import android.content.Context
++import android.net.Uri
++import android.graphics.Bitmap
++import android.graphics.BitmapFactory
++import androidx.compose.runtime.*
++import com.fleetflow.mobile.data.api.*
++import com.fleetflow.mobile.data.model.*
++import com.fleetflow.mobile.ui.screens.*
++import com.google.gson.Gson
++import java.math.BigDecimal
++import java.text.SimpleDateFormat
++import java.util.Locale
++import java.io.ByteArrayOutputStream
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.withContext
++import okhttp3.MediaType.Companion.toMediaType
++import okhttp3.RequestBody.Companion.toRequestBody
++import retrofit2.Response
++
++object FinanceRepository {
++    private var context:Context?=null
++    private lateinit var api:FinanceApi
++    val categorias=mutableStateListOf<CategoriaDto>()
++    val formas=mutableStateListOf<FormaDto>()
++    var saldo by mutableStateOf<SaldoDto?>(null); private set
++    var totais by mutableStateOf<TotaisDto?>(null); private set
++    var totalPages by mutableStateOf(1); private set
++    fun init(ctx:Context) {context=ctx.applicationContext;api=ApiClient.getRetrofit(ctx).create(FinanceApi::class.java)}
++    private fun <T> checked(response:Response<T>):T {
++        if(!response.isSuccessful) {
++            val error=runCatching {Gson().fromJson(response.errorBody()?.string(),ErrorResponseDto::class.java)}.getOrNull()
++            throw ApiException(error?.error?.code,error?.error?.message?:"Erro ${response.code()}")
++        }
++        return response.body()?:throw Exception("Resposta vazia")
++    }
++    private fun checkEmpty(response:Response<*>) {if(!response.isSuccessful) checked(response)}
++    suspend fun catalogs() {categorias.clear();categorias.addAll(checked(api.categorias()).data);formas.clear();formas.addAll(checked(api.formas()).data)}
++    suspend fun load(page:Int=1,busca:String="",status:String="",tipo:String="") {
++        val q=mutableMapOf("page" to page.toString(),"pageSize" to "20")
++        if(busca.isNotBlank())q["busca"]=busca
++        if(status.isNotBlank())q["status"]=status
++        if(tipo.isNotBlank())q["tipo"]=tipo
++        val result=checked(api.movimentacoes(q));MovimentacaoRepo.itens.clear();MovimentacaoRepo.itens.addAll(result.data.map {it.toModel()})
++        totalPages=result.totalPages;totais=result.totais;saldo=checked(api.saldo())
++    }
++    suspend fun refreshSaldo() {saldo=checked(api.saldo())}
++    suspend fun save(m:Movimentacao):String {
++        val cat=categorias.firstOrNull {it.titulo==m.categoria}?:throw Exception("Selecione uma categoria")
++        val forma=formas.firstOrNull {it.nome==m.formaPagamento}?:throw Exception("Selecione uma forma")
++        val body=MovRequestDto(BigDecimal.valueOf(m.valorCentavos,2).toPlainString(),m.descricao,cat.id,forma.id,
++            if(m.status==StatusMov.PAGO)"Pago" else "Pendente",isoDate(m.dataVencimento),if(m.status==StatusMov.PAGO)isoDate(m.dataPagamento) else null,m.syncVersion)
++        val row=checked(if(m.syncVersion==null)api.criar(body) else api.editar(m.id,body))
++        return row.id
++    }
++    suspend fun upload(id:String,uri:Uri) {
++        val ctx=context?:throw Exception("Aplicativo não iniciado")
++        val bytes=withContext(Dispatchers.IO) {
++            // Ler dimensões antes de decodificar: evita alocar uma foto inteira de alta resolução.
++            val opts=BitmapFactory.Options().apply {inJustDecodeBounds=true}
++            ctx.contentResolver.openInputStream(uri)?.use {BitmapFactory.decodeStream(it,null,opts)}
++            if(opts.outWidth<=0)throw Exception("Imagem inválida")
++            var sample=1
++            while(opts.outWidth/sample>1600 || opts.outHeight/sample>1600) sample*=2
++            val bitmap=ctx.contentResolver.openInputStream(uri)?.use {BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply {inSampleSize=sample})}
++                ?:throw Exception("Não foi possível abrir a imagem")
++            ByteArrayOutputStream().use {stream->bitmap.compress(Bitmap.CompressFormat.JPEG,80,stream);bitmap.recycle();stream.toByteArray()}
++        }
++        checked(api.comprovante(id,bytes.toRequestBody("image/jpeg".toMediaType())))
++    }
++    suspend fun pay(m:Movimentacao) {checked(api.pagar(m.id,mapOf("dataPagamento" to java.time.LocalDate.now().toString())))}
++    suspend fun delete(m:Movimentacao) {checkEmpty(api.remover(m.id))}
++    suspend fun createCat(nome:String,tipo:String) {checked(api.criarCategoria(mapOf("titulo" to nome,"tipo" to tipo)));catalogs()}
++    suspend fun editCat(id:String,nome:String) {checked(api.editarCategoria(id,mapOf("titulo" to nome)));catalogs()}
++    suspend fun deleteCat(id:String) {checkEmpty(api.removerCategoria(id));catalogs()}
++    suspend fun createForma(nome:String) {checked(api.criarForma(mapOf("nome" to nome)));catalogs()}
++    suspend fun editForma(id:String,nome:String) {checked(api.editarForma(id,mapOf("nome" to nome)));catalogs()}
++    suspend fun deleteForma(id:String) {checkEmpty(api.removerForma(id));catalogs()}
++    suspend fun createDivida(body:DividaRequestDto) {checked(api.divida(body))}
++    fun clear() {categorias.clear();formas.clear();saldo=null;totais=null;MovimentacaoRepo.itens.clear()}
++}
++fun isoDate(text:String?):String? {
++    if(text.isNullOrBlank())return null
++    val format=SimpleDateFormat("dd/MM/yyyy",Locale.ROOT).apply {isLenient=false}
++    val position=java.text.ParsePosition(0)
++    val date=format.parse(text,position)?:throw IllegalArgumentException("Data inválida. Use dd/MM/aaaa")
++    if(position.index!=text.length)throw IllegalArgumentException("Data inválida. Use dd/MM/aaaa")
++    return SimpleDateFormat("yyyy-MM-dd",Locale.ROOT).format(date)
++}
++private fun displayDate(iso:String?):String = iso?.split("-")?.let { if(it.size==3) "${it[2]}/${it[1]}/${it[0]}" else "" }?:""
++fun MovDto.toModel()=Movimentacao(id=id,descricao=descricao,valorCentavos=BigDecimal(valor).movePointRight(2).longValueExact(),
++    tipo=if(categoria.tipo=="Entrada")Tipo.ENTRADA else Tipo.SAIDA,categoria=categoria.titulo,formaPagamento=formaPagamento.nome,
++    data=displayDate(dataPagamento?:dataVencimento),status=if(status=="Pago")StatusMov.PAGO else StatusMov.PENDENTE,
++    dataVencimento=displayDate(dataVencimento),dataPagamento=displayDate(dataPagamento),syncVersion=syncVersion)
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/components/Components.kt b/app/src/main/java/com/fleetflow/mobile/ui/components/Components.kt
+new file mode 100644
+index 0000000..960efd5
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/components/Components.kt
+@@ -0,0 +1,159 @@
++package com.fleetflow.mobile.ui.components
++
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.text.KeyboardOptions
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.filled.Inbox
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.graphics.vector.ImageVector
++import androidx.compose.ui.text.input.KeyboardType
++import androidx.compose.ui.text.style.TextAlign
++import androidx.compose.ui.tooling.preview.Preview
++import androidx.compose.ui.unit.dp
++import com.fleetflow.mobile.ui.theme.FleetFlowTheme
++
++// ---------------------------------------------------------------
++// 1) CAMPO DE VALOR (R$)
++// O estado guarda só os DÍGITOS ("123450"). A tela mostra formatado
++// ("R$ 1.234,50"). Assim nunca sobra vírgula ou ponto no lugar errado.
++// ---------------------------------------------------------------
++@Composable
++fun MoneyField(
++    value: String,
++    onValueChange: (String) -> Unit,
++    label: String,
++    modifier: Modifier = Modifier,
++    isError: Boolean = false,
++    errorText: String? = null,
++) {
++    OutlinedTextField(
++        value = formatMoney(value),
++        onValueChange = { digitado ->
++            // Mantém só números, no máximo 12 dígitos.
++            onValueChange(digitado.filter { it.isDigit() }.take(12))
++        },
++        label = { Text(label) },
++        leadingIcon = { Text("R$", style = MaterialTheme.typography.bodyMedium) },
++        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
++        isError = isError,
++        supportingText = { if (isError && errorText != null) Text(errorText) },
++        singleLine = true,
++        modifier = modifier.fillMaxWidth(),
++    )
++}
++
++// Transforma "123450" em "1.234,50". Trata os dois últimos dígitos como centavos.
++fun formatMoney(digits: String): String {
++    if (digits.isEmpty()) return ""
++    val cents = digits.toLong()
++    val reais = (cents / 100).toString()
++        .reversed().chunked(3).joinToString(".").reversed() // ponto de milhar
++    return "%s,%02d".format(reais, cents % 100)
++}
++
++// ---------------------------------------------------------------
++// 2) SELETOR (dropdown) — escolher categoria, forma de pagamento, etc.
++// ---------------------------------------------------------------
++@OptIn(ExperimentalMaterial3Api::class)
++@Composable
++fun AppDropdown(
++    label: String,
++    options: List<String>,
++    selected: String?,
++    onSelected: (String) -> Unit,
++    modifier: Modifier = Modifier,
++) {
++    var expanded by remember { mutableStateOf(false) }
++    ExposedDropdownMenuBox(
++        expanded = expanded,
++        onExpandedChange = { expanded = it },
++        modifier = modifier,
++    ) {
++        OutlinedTextField(
++            value = selected ?: "",
++            onValueChange = {},
++            readOnly = true,
++            label = { Text(label) },
++            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
++            modifier = Modifier
++                .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
++                .fillMaxWidth(),
++        )
++        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
++            options.forEach { option ->
++                DropdownMenuItem(
++                    text = { Text(option) },
++                    onClick = { onSelected(option); expanded = false },
++                )
++            }
++        }
++    }
++}
++
++// ---------------------------------------------------------------
++// 3) ESTADO VAZIO — quando uma lista não tem nada ainda.
++// ---------------------------------------------------------------
++@Composable
++fun EmptyState(
++    icon: ImageVector,
++    title: String,
++    message: String,
++    modifier: Modifier = Modifier,
++    actionLabel: String? = null,
++    onAction: (() -> Unit)? = null,
++) {
++    Column(
++        modifier = modifier.fillMaxWidth().padding(32.dp),
++        horizontalAlignment = Alignment.CenterHorizontally,
++    ) {
++        Icon(icon, null, Modifier.size(64.dp), tint = MaterialTheme.colorScheme.outline)
++        Spacer(Modifier.height(16.dp))
++        Text(title, style = MaterialTheme.typography.titleMedium)
++        Spacer(Modifier.height(4.dp))
++        Text(
++            message,
++            style = MaterialTheme.typography.bodyMedium,
++            color = MaterialTheme.colorScheme.onSurfaceVariant,
++            textAlign = TextAlign.Center,
++        )
++        if (actionLabel != null && onAction != null) {
++            Spacer(Modifier.height(24.dp))
++            Button(onClick = onAction) { Text(actionLabel) }
++        }
++    }
++}
++
++// ---------------------------------------------------------------
++// PREVIEW — vê os três componentes sem rodar o app inteiro.
++// Clica em "Split" ou "Design" no topo direito do editor.
++// ---------------------------------------------------------------
++@Preview(showBackground = true)
++@Composable
++private fun ComponentsPreview() {
++    FleetFlowTheme {
++        var valor by remember { mutableStateOf("") }
++        var categoria by remember { mutableStateOf<String?>(null) }
++        Column(
++            Modifier.padding(16.dp),
++            verticalArrangement = Arrangement.spacedBy(16.dp),
++        ) {
++            MoneyField(value = valor, onValueChange = { valor = it }, label = "Valor")
++            AppDropdown(
++                label = "Categoria",
++                options = listOf("Combustível", "Pedágio", "Frete", "Manutenção"),
++                selected = categoria,
++                onSelected = { categoria = it },
++            )
++            EmptyState(
++                icon = Icons.Filled.Inbox,
++                title = "Nada por aqui",
++                message = "Nenhum lançamento ainda. Toque em adicionar.",
++                actionLabel = "Adicionar",
++                onAction = {},
++            )
++        }
++    }
++}
+diff --git a/app/src/main/java/ui/screens/AcessoNegadoScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/AcessoNegadoScreen.kt
+similarity index 100%
+rename from app/src/main/java/ui/screens/AcessoNegadoScreen.kt
+rename to app/src/main/java/com/fleetflow/mobile/ui/screens/AcessoNegadoScreen.kt
+diff --git a/app/src/main/java/ui/screens/AguardandoScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/AguardandoScreen.kt
+similarity index 100%
+rename from app/src/main/java/ui/screens/AguardandoScreen.kt
+rename to app/src/main/java/com/fleetflow/mobile/ui/screens/AguardandoScreen.kt
+diff --git a/app/src/main/java/ui/screens/BarChart.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/BarChart.kt
+similarity index 97%
+rename from app/src/main/java/ui/screens/BarChart.kt
+rename to app/src/main/java/com/fleetflow/mobile/ui/screens/BarChart.kt
+index 7aab403..f930732 100644
+--- a/app/src/main/java/ui/screens/BarChart.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/BarChart.kt
+@@ -12,7 +12,8 @@ import com.fleetflow.mobile.ui.theme.Vermelho
+ 
+ @Composable
+ fun GraficoReceitasDespesas(dados: List<MovimentacaoMensal>) {
+-    val maiorValor = dados.maxOf { maxOf(it.receita, it.despesa) }
++    if(dados.isEmpty())return
++    val maiorValor = dados.maxOf { maxOf(it.receita, it.despesa) }.coerceAtLeast(1.0)
+ 
+     Canvas(
+         modifier = Modifier
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/CategoriasScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/CategoriasScreen.kt
+new file mode 100644
+index 0000000..e84c302
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/CategoriasScreen.kt
+@@ -0,0 +1,173 @@
++package com.fleetflow.mobile.ui.screens
++
++import androidx.compose.foundation.layout.statusBarsPadding
++import androidx.compose.foundation.background
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.lazy.LazyColumn
++import androidx.compose.foundation.lazy.items
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.foundation.text.KeyboardOptions
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import com.fleetflow.mobile.data.model.CategoriaDto
++import com.fleetflow.mobile.data.repository.FinanceRepository
++import kotlinx.coroutines.launch
++import com.fleetflow.mobile.ui.theme.*
++
++@Composable
++fun CategoriasScreen(onVoltarClick: () -> Unit, somenteLeitura:Boolean=false) {
++    var nomeNovo by remember { mutableStateOf("") }
++    var tipoNovo by remember { mutableStateOf("SAIDA") }
++
++    val scope=rememberCoroutineScope()
++    var erro by remember {mutableStateOf<String?>(null)}
++    var busy by remember {mutableStateOf(false)}
++    suspend fun execute(action:suspend()->Unit) {busy=true;runCatching {action()}.onFailure {erro=it.message};busy=false}
++    LaunchedEffect(Unit) {execute {FinanceRepository.catalogs()}}
++    Scaffold(
++        containerColor = BackgroundTela,
++        topBar = {
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .background(Petroleo)
++                    .statusBarsPadding()
++                    .padding(horizontal = 8.dp, vertical = 12.dp),
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                IconButton(onClick = onVoltarClick) {
++                    Text("←", color = Branco, fontSize = 22.sp)
++                }
++                Spacer(modifier = Modifier.width(8.dp))
++                Text("CATEGORIAS", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
++            }
++        }
++    ) { padding ->
++        Column(
++            modifier = Modifier
++                .fillMaxSize()
++                .padding(padding)
++                .padding(16.dp)
++        ) {
++
++            erro?.let {Text(it,color=MaterialTheme.colorScheme.error)}
++            if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
++            if(!somenteLeitura)             Column(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .clip(RoundedCornerShape(12.dp))
++                    .background(SuperficieCard)
++                    .padding(16.dp)
++            ) {
++                Text("Nova categoria", color = TextoSecundario, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
++                Spacer(modifier = Modifier.height(8.dp))
++
++                OutlinedTextField(
++                    value = nomeNovo,
++                    onValueChange = { nomeNovo = it },
++                    placeholder = { Text("Nome da categoria") },
++                    singleLine = true,
++                    keyboardOptions = KeyboardOptions.Default,
++                    modifier = Modifier.fillMaxWidth(),
++                    colors = OutlinedTextFieldDefaults.colors(
++                        focusedBorderColor = Petroleo,
++                        unfocusedBorderColor = Divisor
++                    )
++                )
++
++                Spacer(modifier = Modifier.height(10.dp))
++
++                Row {
++                    SeletorTipo("ENTRADA", tipoNovo == "ENTRADA") { tipoNovo = "ENTRADA" }
++                    Spacer(modifier = Modifier.width(8.dp))
++                    SeletorTipo("SAIDA", tipoNovo == "SAIDA") { tipoNovo = "SAIDA" }
++                }
++
++                Spacer(modifier = Modifier.height(12.dp))
++
++                Button(
++                    onClick = {
++                        if (nomeNovo.isNotBlank()) {
++                            scope.launch {execute {FinanceRepository.createCat(nomeNovo.trim(),if(tipoNovo=="ENTRADA")"Entrada" else "Saida");nomeNovo=""}}
++                        }
++                    },
++                    modifier = Modifier.fillMaxWidth(),
++                    colors = ButtonDefaults.buttonColors(containerColor = Petroleo)
++                ) {
++                    Text("Adicionar", color = Branco, fontWeight = FontWeight.SemiBold)
++                }
++            }
++
++            Spacer(modifier = Modifier.height(16.dp))
++
++            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                items(FinanceRepository.categorias, key = { it.id }) { categoria ->
++                    CardCategoria(categoria,somenteLeitura,{nome->scope.launch {execute {FinanceRepository.editCat(categoria.id,nome)}}},{scope.launch {execute {FinanceRepository.deleteCat(categoria.id)}}})
++                }
++            }
++        }
++    }
++}
++
++@Composable
++private fun SeletorTipo(label: String, selecionado: Boolean, onClick: () -> Unit) {
++    val texto = if (label == "ENTRADA") "Entrada" else "Saída"
++    val cor = if (selecionado) Petroleo else CinzaSuave
++    val corTexto = if (selecionado) Branco else TextoSecundario
++
++    Box(
++        modifier = Modifier
++            .clip(RoundedCornerShape(8.dp))
++            .background(cor)
++            .clickable { onClick() }
++            .padding(horizontal = 14.dp, vertical = 8.dp)
++    ) {
++        Text(texto, color = corTexto, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
++    }
++}
++
++@Composable
++private fun CardCategoria(categoria: CategoriaDto,somenteLeitura:Boolean,onEdit:(String)->Unit,onDelete:()->Unit) {
++    Row(
++        modifier = Modifier
++            .fillMaxWidth()
++            .clip(RoundedCornerShape(12.dp))
++            .background(SuperficieCard)
++            .padding(14.dp),
++        verticalAlignment = Alignment.CenterVertically
++    ) {
++        Column(modifier = Modifier.weight(1f)) {
++            Text(categoria.titulo, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
++            Spacer(modifier = Modifier.height(4.dp))
++            val corTipo = if (categoria.tipo == "Entrada") VerdeEsmeralda else Vermelho
++            Text(
++                if (categoria.tipo == "Entrada") "Entrada" else "Saída",
++                color = corTipo,
++                fontSize = 11.sp,
++                fontWeight = FontWeight.SemiBold
++            )
++        }
++
++        if(categoria.ehSistema || somenteLeitura) Text(if(categoria.ehSistema) "Sistema" else "Leitura",color=TextoSecundario)
++        else {
++            var editando by remember {mutableStateOf(false)}
++            var nome by remember(categoria.id) {mutableStateOf(categoria.titulo)}
++            var excluir by remember {mutableStateOf(false)}
++            Column {
++                TextButton(onClick={editando=true}){Text("Editar")}
++                TextButton(onClick={excluir=true}){Text("Excluir")}
++            }
++            if(editando)AlertDialog(onDismissRequest={editando=false},title={Text("Editar")},text={OutlinedTextField(value=nome,onValueChange={nome=it})},
++                confirmButton={TextButton(onClick={editando=false;onEdit(nome.trim())}){Text("Salvar")}},dismissButton={TextButton(onClick={editando=false}){Text("Cancelar")}})
++            if(excluir)AlertDialog(onDismissRequest={excluir=false},title={Text("Excluir cadastro?")},text={Text(categoria.titulo)},
++                confirmButton={TextButton(onClick={excluir=false;onDelete()}){Text("Excluir")}},dismissButton={TextButton(onClick={excluir=false}){Text("Cancelar")}})
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/ComprovanteAnexo.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/ComprovanteAnexo.kt
+new file mode 100644
+index 0000000..5e40a99
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/ComprovanteAnexo.kt
+@@ -0,0 +1,168 @@
++package com.fleetflow.mobile.ui.screens
++
++import android.content.pm.PackageManager
++import android.graphics.Bitmap
++import android.graphics.BitmapFactory
++import android.net.Uri
++import android.os.Build
++import androidx.activity.result.contract.ActivityResultContracts
++import androidx.activity.compose.rememberLauncherForActivityResult
++import androidx.compose.foundation.Image
++import androidx.compose.foundation.background
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material3.Button
++import androidx.compose.material3.ButtonDefaults
++import androidx.compose.material3.Text
++import androidx.compose.runtime.*
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.asImageBitmap
++import androidx.compose.ui.layout.ContentScale
++import androidx.compose.ui.platform.LocalContext
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import androidx.core.content.ContextCompat
++import androidx.core.content.FileProvider
++import com.fleetflow.mobile.ui.theme.*
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.withContext
++import java.io.File
++
++@Composable
++fun ComprovanteAnexo(
++    comprovanteUri: Uri?,
++    onComprovanteChange: (Uri?) -> Unit,
++    modifier: Modifier = Modifier
++) {
++    val context = LocalContext.current
++    var uriTemporariaCamera by remember { mutableStateOf<Uri?>(null) }
++
++    val launcherCamera = rememberLauncherForActivityResult(
++        ActivityResultContracts.TakePicture()
++    ) { sucesso ->
++        if (sucesso) onComprovanteChange(uriTemporariaCamera)
++    }
++
++    val launcherPermissaoCamera = rememberLauncherForActivityResult(
++        ActivityResultContracts.RequestPermission()
++    ) { concedida ->
++        if (concedida) {
++            val uri = criarUriTemporaria(context)
++            uriTemporariaCamera = uri
++            launcherCamera.launch(uri)
++        }
++    }
++
++    val launcherGaleria = rememberLauncherForActivityResult(
++        ActivityResultContracts.PickVisualMedia()
++    ) { uri ->
++        if (uri != null) onComprovanteChange(uri)
++    }
++
++    Column(modifier = modifier) {
++        Text("Comprovante", color = TextoSecundario, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
++        Spacer(modifier = Modifier.height(8.dp))
++
++        if (comprovanteUri != null) {
++            var bitmap by remember(comprovanteUri) { mutableStateOf<Bitmap?>(null) }
++
++            LaunchedEffect(comprovanteUri) {
++                bitmap = withContext(Dispatchers.IO) {
++                    try {
++                        val opts=BitmapFactory.Options().apply {inJustDecodeBounds=true}
++                        context.contentResolver.openInputStream(comprovanteUri)?.use {BitmapFactory.decodeStream(it,null,opts)}
++                        var sample=1
++                        while(opts.outWidth/sample>800 || opts.outHeight/sample>800) sample*=2
++                        context.contentResolver.openInputStream(comprovanteUri)?.use {
++                            BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply {inSampleSize=sample})
++                        }
++                    } catch (e: Exception) {
++                        null
++                    }
++                }
++            }
++
++            Box(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .height(160.dp)
++                    .clip(RoundedCornerShape(12.dp))
++                    .background(CinzaSuave)
++            ) {
++                bitmap?.let {
++                    Image(
++                        bitmap = it.asImageBitmap(),
++                        contentDescription = "Comprovante anexado",
++                        contentScale = ContentScale.Crop,
++                        modifier = Modifier.fillMaxSize()
++                    )
++                }
++
++                Box(
++                    modifier = Modifier
++                        .align(Alignment.TopEnd)
++                        .padding(8.dp)
++                        .clip(RoundedCornerShape(8.dp))
++                        .background(Vermelho)
++                        .clickable { onComprovanteChange(null) }
++                        .padding(horizontal = 10.dp, vertical = 6.dp)
++                ) {
++                    Text("Remover", color = Branco, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
++                }
++            }
++
++            Spacer(modifier = Modifier.height(10.dp))
++        }
++
++        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
++            Button(
++                onClick = {
++                    val jaTemPermissao = ContextCompat.checkSelfPermission(
++                        context, android.Manifest.permission.CAMERA
++                    ) == PackageManager.PERMISSION_GRANTED
++
++                    if (jaTemPermissao) {
++                        val uri = criarUriTemporaria(context)
++                        uriTemporariaCamera = uri
++                        launcherCamera.launch(uri)
++                    } else {
++                        launcherPermissaoCamera.launch(android.Manifest.permission.CAMERA)
++                    }
++                },
++                modifier = Modifier.weight(1f),
++                colors = ButtonDefaults.buttonColors(containerColor = Petroleo)
++            ) {
++                Text("📷 Câmera", color = Branco, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
++            }
++
++            Button(
++                onClick = {
++                    launcherGaleria.launch(
++                        androidx.activity.result.PickVisualMediaRequest(
++                            ActivityResultContracts.PickVisualMedia.ImageOnly
++                        )
++                    )
++                },
++                modifier = Modifier.weight(1f),
++                colors = ButtonDefaults.buttonColors(containerColor = AmbarDourado)
++            ) {
++                Text("🖼 Galeria", color = Petroleo, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
++            }
++        }
++    }
++}
++
++private fun criarUriTemporaria(context: android.content.Context): Uri {
++    val pastaImagens = context.getExternalFilesDir("images") ?: context.filesDir
++    pastaImagens.mkdirs()
++    val arquivo = File(pastaImagens, "comprovante_${System.currentTimeMillis()}.jpg")
++    return FileProvider.getUriForFile(
++        context,
++        "${context.packageName}.fileprovider",
++        arquivo
++    )
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/FinancasScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/FinancasScreen.kt
+new file mode 100644
+index 0000000..63eed61
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/FinancasScreen.kt
+@@ -0,0 +1,329 @@
++package com.fleetflow.mobile.ui.screens
++
++import android.net.Uri
++import com.fleetflow.mobile.data.repository.FinanceRepository
++import androidx.activity.compose.BackHandler
++import androidx.compose.foundation.background
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.lazy.LazyColumn
++import androidx.compose.foundation.lazy.items
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.verticalScroll
++import androidx.compose.material.icons.Icons
++import androidx.compose.material.icons.automirrored.filled.ArrowBack
++import androidx.compose.material.icons.filled.Add
++import androidx.compose.material.icons.filled.Inbox
++import androidx.compose.material.icons.filled.TrendingDown
++import androidx.compose.material.icons.filled.TrendingUp
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.graphics.Color
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.text.style.TextOverflow
++import androidx.compose.ui.unit.dp
++import com.fleetflow.mobile.data.local.AppDatabase
++import com.fleetflow.mobile.data.local.MovimentacaoDao
++import com.fleetflow.mobile.data.local.MovimentacaoEntity
++import com.fleetflow.mobile.ui.components.AppDropdown
++import com.fleetflow.mobile.ui.components.EmptyState
++import com.fleetflow.mobile.ui.components.MoneyField
++import com.fleetflow.mobile.ui.components.formatMoney
++import kotlinx.coroutines.CoroutineScope
++import kotlinx.coroutines.Dispatchers
++import kotlinx.coroutines.SupervisorJob
++import kotlinx.coroutines.launch
++import java.text.SimpleDateFormat
++import java.util.Date
++import java.util.Locale
++import java.util.UUID
++
++// ============================================================
++// MODELO (o que a tela usa)
++// ============================================================
++enum class Tipo { ENTRADA, SAIDA }
++enum class StatusMov { PENDENTE, PAGO }
++
++data class Movimentacao(
++    val id: String = UUID.randomUUID().toString(),
++    val descricao: String,
++    val valorCentavos: Long,       // dinheiro em centavos, nunca Double
++    val tipo: Tipo,
++    val categoria: String,
++    val formaPagamento: String,
++    val data: String,              // dd/MM/yyyy
++    val status: StatusMov,
++    val dataVencimento:String? = null,
++    val dataPagamento:String? = null,
++    val comprovanteUri:Uri? = null,
++    val syncVersion:Int? = null,
++    val criadoEm: Long = System.currentTimeMillis(),
++)
++
++// ============================================================
++// REPOSITÓRIO: a tela lê 'itens' e chama 'add'. Por dentro, fala com o Room.
++// ============================================================
++object MovimentacaoRepo {
++    val itens = mutableStateListOf<Movimentacao>()
++    fun clear() {FinanceRepository.clear()}
++}
++val CATEGORIAS:List<String> get() = FinanceRepository.categorias.map {it.titulo}
++val FORMAS:List<String> get() = FinanceRepository.formas.map {it.nome}
++fun tipoDaCategoria(cat:String):Tipo = if(FinanceRepository.categorias.firstOrNull {it.titulo==cat}?.tipo=="Entrada") Tipo.ENTRADA else Tipo.SAIDA
++
++fun centsToBRL(cents: Long): String = "R$ " + formatMoney(cents.toString())
++
++val hoje: String = SimpleDateFormat("dd/MM/yyyy", Locale.forLanguageTag("pt-BR")).format(Date())
++
++// ============================================================
++// TELA: mostra a lista ou o formulário
++// ============================================================
++@Composable
++fun FinancasScreen(onMessage:(String)->Unit,onCategorias:()->Unit={},onFormas:()->Unit={},onDividas:()->Unit={}) {
++    var showForm by remember {mutableStateOf(false)}
++    var editing by remember {mutableStateOf<Movimentacao?>(null)}
++    var busy by remember {mutableStateOf(false)}
++    var error by remember {mutableStateOf<String?>(null)}
++    var busca by remember {mutableStateOf("")}
++    var status by remember {mutableStateOf("")}
++    var tipo by remember {mutableStateOf("")}
++    var page by remember {mutableStateOf(1)}
++    val scope=rememberCoroutineScope()
++    suspend fun load() {busy=true;error=null;runCatching {FinanceRepository.catalogs();FinanceRepository.load(page,busca,status,tipo)}.onFailure {error=it.message};busy=false}
++    LaunchedEffect(page,status,tipo) {load()}
++    BackHandler(enabled=showForm) {showForm=false;editing=null}
++    if(showForm) {
++        NovoLancamentoForm(onInvalid={onMessage("Preencha valor, descrição, categoria, forma de pagamento e datas válidas")},initial=editing,busy=busy,onCancel={showForm=false;editing=null},onSave={m->
++            scope.launch {
++                busy=true
++                runCatching {FinanceRepository.save(m)}.onSuccess {id->
++                    m.comprovanteUri?.let {uri->runCatching {FinanceRepository.upload(id,uri)}.onFailure {onMessage("Lançamento salvo. Comprovante não enviado: ${it.message}")}}
++                    showForm=false;editing=null
++                    onMessage("Lançamento salvo na API")
++                    runCatching {FinanceRepository.load(page,busca,status,tipo)}.onFailure {onMessage("Salvo. Falha ao atualizar a lista: ${it.message}")}
++                }.onFailure {onMessage(it.message?:"Falha ao salvar")}
++                busy=false
++            }
++        })
++    } else Column(Modifier.fillMaxSize()) {
++        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly) {
++            TextButton(onClick=onCategorias){Text("Categorias")}
++            TextButton(onClick=onFormas){Text("Pagamentos")}
++            TextButton(onClick=onDividas){Text("Dívidas")}
++        }
++        Row(Modifier.padding(horizontal=16.dp),verticalAlignment=Alignment.CenterVertically) {
++            OutlinedTextField(value=busca,onValueChange={busca=it},label={Text("Buscar descrição")},modifier=Modifier.weight(1f),singleLine=true)
++            TextButton(onClick={page=1;scope.launch {load()}}){Text("Buscar")}
++        }
++        Row(Modifier.padding(16.dp),horizontalArrangement=Arrangement.spacedBy(8.dp)) {
++            AppDropdown("Status",listOf("Todos","Pendente","Pago"),status.ifEmpty {"Todos"},{status=if(it=="Todos")"" else it;page=1},Modifier.weight(1f))
++            AppDropdown("Tipo",listOf("Todos","Entrada","Saída"),if(tipo=="Saida")"Saída" else tipo.ifEmpty {"Todos"},{tipo=when(it){"Todos"->"";"Saída"->"Saida";else->it};page=1},Modifier.weight(1f))
++        }
++        if(busy) LinearProgressIndicator(Modifier.fillMaxWidth())
++        error?.let {Text(it,color=MaterialTheme.colorScheme.error,modifier=Modifier.padding(16.dp))}
++        Box(Modifier.weight(1f)) {
++            MovimentacoesList(MovimentacaoRepo.itens,onAdd={editing=null;showForm=true},onEdit={editing=it;showForm=true},
++                onPay={m->scope.launch {runCatching {FinanceRepository.pay(m);load()}.onFailure {onMessage(it.message?:"Erro")}}},
++                onDelete={m->scope.launch {runCatching {FinanceRepository.delete(m);load()}.onFailure {onMessage(it.message?:"Erro")}}})
++        }
++        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.SpaceEvenly,verticalAlignment=Alignment.CenterVertically) {
++            TextButton(enabled=page>1&&!busy,onClick={page--}){Text("Anterior")}
++            Text("$page / ${FinanceRepository.totalPages}")
++            TextButton(enabled=page<FinanceRepository.totalPages&&!busy,onClick={page++}){Text("Próxima")}
++        }
++    }
++}
++
++// ============================================================
++// LISTA
++// ============================================================
++@Composable
++private fun MovimentacoesList(itens: List<Movimentacao>, onAdd: () -> Unit, onEdit:(Movimentacao)->Unit, onPay:(Movimentacao)->Unit, onDelete:(Movimentacao)->Unit) {
++    Box(Modifier.fillMaxSize()) {
++        if (itens.isEmpty()) {
++            EmptyState(
++                icon = Icons.Filled.Inbox,
++                title = "Nenhuma movimentação",
++                message = "Toque em adicionar para registrar a primeira entrada ou saída.",
++                actionLabel = "Adicionar",
++                onAction = onAdd,
++                modifier = Modifier.align(Alignment.Center),
++            )
++        } else {
++            Column(Modifier.fillMaxSize()) {
++                Column(Modifier.padding(16.dp)) {
++                    Text("Movimentações", style = MaterialTheme.typography.headlineSmall)
++                    Text("Saldo atual: R$ ${FinanceRepository.saldo?.saldoAtual ?: "0.00"}",style=MaterialTheme.typography.titleSmall)
++                    Spacer(Modifier.height(12.dp))
++                    val entradas = java.math.BigDecimal(FinanceRepository.totais?.entradas ?: "0").movePointRight(2).toLong()
++                    val saidas = java.math.BigDecimal(FinanceRepository.totais?.saidas ?: "0").movePointRight(2).toLong()
++                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
++                        ResumoChip("Entradas", centsToBRL(entradas), MaterialTheme.colorScheme.tertiary)
++                        ResumoChip("Saídas", centsToBRL(saidas), MaterialTheme.colorScheme.error)
++                    }
++                }
++                LazyColumn(
++                    modifier = Modifier.fillMaxSize(),
++                    contentPadding = PaddingValues(bottom = 88.dp),
++                ) {
++                    // key: ajuda o Compose a saber qual item é qual quando a lista muda
++                    items(itens, key = { it.id }) { m -> Column {
++                        MovRow(m)
++                        Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.End) {
++                            TextButton(onClick={onEdit(m)}){Text("Editar")}
++                            if(m.status==StatusMov.PENDENTE) TextButton(onClick={onPay(m)}){Text("Pagar/Receber")}
++                            var confirm by remember {mutableStateOf(false)}
++                            TextButton(onClick={confirm=true}){Text("Excluir")}
++                            if(confirm) AlertDialog(onDismissRequest={confirm=false},title={Text("Excluir lançamento?")},text={Text(m.descricao)},
++                                confirmButton={TextButton(onClick={confirm=false;onDelete(m)}){Text("Excluir")}},dismissButton={TextButton(onClick={confirm=false}){Text("Cancelar")}})
++                        }
++                    } }
++                }
++            }
++        }
++
++        FloatingActionButton(
++            onClick = onAdd,
++            modifier = Modifier.align(Alignment.BottomEnd).padding(16.dp),
++        ) {
++            Icon(Icons.Filled.Add, contentDescription = "Adicionar")
++        }
++    }
++}
++
++@Composable
++private fun RowScope.ResumoChip(label: String, valor: String, cor: Color) {
++    Card(Modifier.weight(1f)) {
++        Column(Modifier.padding(12.dp)) {
++            Text(label, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++            Text(valor, style = MaterialTheme.typography.titleMedium, color = cor)
++        }
++    }
++}
++
++@Composable
++private fun MovRow(m: Movimentacao) {
++    val entrada = m.tipo == Tipo.ENTRADA
++    val cor = if (entrada) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.error
++    Row(
++        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 10.dp),
++        verticalAlignment = Alignment.CenterVertically,
++    ) {
++        Box(
++            modifier = Modifier.size(40.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surfaceVariant),
++            contentAlignment = Alignment.Center,
++        ) {
++            Icon(if (entrada) Icons.Filled.TrendingUp else Icons.Filled.TrendingDown, null, tint = cor)
++        }
++        Spacer(Modifier.width(12.dp))
++        Column(Modifier.weight(1f)) {
++            Text(m.descricao, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
++            Text("${m.categoria} • ${m.data}", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
++        }
++        Column(horizontalAlignment = Alignment.End) {
++            Text((if (entrada) "+" else "-") + centsToBRL(m.valorCentavos), color = cor, fontWeight = FontWeight.SemiBold)
++            if (m.status == StatusMov.PENDENTE) {
++                Text("Pendente", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.secondary)
++            }
++        }
++    }
++    HorizontalDivider(color = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f))
++}
++
++// ============================================================
++// FORMULÁRIO
++// ============================================================
++@Composable
++private fun NovoLancamentoForm(onInvalid:()->Unit={},initial:Movimentacao?=null,busy:Boolean=false,onCancel: () -> Unit, onSave: (Movimentacao) -> Unit) {
++    var valor by remember(initial) { mutableStateOf(initial?.valorCentavos?.toString() ?: "") }
++    var descricao by remember(initial) { mutableStateOf(initial?.descricao ?: "") }
++    var categoria by remember(initial) { mutableStateOf(initial?.categoria) }
++    var forma by remember(initial) { mutableStateOf(initial?.formaPagamento) }
++    var status by remember(initial) { mutableStateOf(initial?.status ?: StatusMov.PENDENTE) }
++    var vencimento by remember(initial) {mutableStateOf(initial?.dataVencimento ?: hoje)}
++    var pagamento by remember(initial) {mutableStateOf(initial?.dataPagamento?.takeIf {it.isNotBlank()} ?: hoje)}
++    var comprovante by remember {mutableStateOf<Uri?>(null)}
++    var tentouSalvar by remember { mutableStateOf(false) }
++
++    val valorValido = valor.isNotEmpty() && (valor.toLongOrNull() ?: 0) > 0
++    val descricaoValida = descricao.isNotBlank()
++    val datasValidas = runCatching {com.fleetflow.mobile.data.repository.isoDate(vencimento);if(status==StatusMov.PAGO)com.fleetflow.mobile.data.repository.isoDate(pagamento)}.isSuccess
++    val formValido = valorValido && descricaoValida && categoria != null && forma != null && datasValidas
++
++    Column(Modifier.fillMaxSize()) {
++        Row(
++            modifier = Modifier.fillMaxWidth().background(MaterialTheme.colorScheme.primary).padding(horizontal = 4.dp, vertical = 8.dp),
++            verticalAlignment = Alignment.CenterVertically,
++        ) {
++            IconButton(onClick = onCancel) {
++                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Voltar", tint = MaterialTheme.colorScheme.onPrimary)
++            }
++            Text("Novo lançamento", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onPrimary)
++        }
++
++        Column(
++            modifier = Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(16.dp),
++            verticalArrangement = Arrangement.spacedBy(16.dp),
++        ) {
++            MoneyField(
++                value = valor, onValueChange = { valor = it }, label = "Valor",
++                isError = tentouSalvar && !valorValido, errorText = "Informe um valor maior que zero",
++            )
++            OutlinedTextField(
++                value = descricao, onValueChange = { descricao = it }, label = { Text("Descrição") },
++                isError = tentouSalvar && !descricaoValida,
++                supportingText = { if (tentouSalvar && !descricaoValida) Text("Campo obrigatório") },
++                singleLine = true, modifier = Modifier.fillMaxWidth(),
++            )
++            AppDropdown("Categoria", CATEGORIAS, categoria, { categoria = it })
++            AppDropdown("Forma de pagamento", FORMAS, forma, { forma = it })
++
++            OutlinedTextField(value=vencimento,onValueChange={vencimento=it},label={Text("Vencimento dd/MM/aaaa")},modifier=Modifier.fillMaxWidth(),isError=tentouSalvar&&!datasValidas)
++            if(status==StatusMov.PAGO) OutlinedTextField(value=pagamento,onValueChange={pagamento=it},label={Text("Pagamento dd/MM/aaaa")},modifier=Modifier.fillMaxWidth(),isError=tentouSalvar&&!datasValidas)
++            ComprovanteAnexo(comprovanteUri=comprovante,onComprovanteChange={comprovante=it})
++            Text("Status", style = MaterialTheme.typography.labelSmall)
++            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
++                StatusButton("Pendente", status == StatusMov.PENDENTE) { status = StatusMov.PENDENTE }
++                StatusButton("Pago/Recebido", status == StatusMov.PAGO) { status = StatusMov.PAGO }
++            }
++        }
++
++        Surface(shadowElevation = 8.dp) {
++            Button(
++                onClick = {
++                    tentouSalvar = true
++                    if (!formValido) onInvalid()
++                    if (formValido) {
++                        onSave(
++                            Movimentacao(
++                                id=initial?.id ?: UUID.randomUUID().toString(),syncVersion=initial?.syncVersion,
++                                dataVencimento=vencimento,dataPagamento=if(status==StatusMov.PAGO)pagamento else null,comprovanteUri=comprovante,
++                                descricao = descricao.trim(),
++                                valorCentavos = valor.toLong(),
++                                tipo = tipoDaCategoria(categoria!!),
++                                categoria = categoria!!,
++                                formaPagamento = forma!!,
++                                data = hoje,
++                                status = status,
++                            )
++                        )
++                    }
++                },
++                enabled = !busy, modifier = Modifier.fillMaxWidth().padding(16.dp),
++            ) { Text(if(busy) "Salvando…" else "Salvar") }
++        }
++    }
++}
++
++@Composable
++private fun RowScope.StatusButton(text: String, selected: Boolean, onClick: () -> Unit) {
++    if (selected) {
++        Button(onClick, Modifier.weight(1f)) { Text(text) }
++    } else {
++        OutlinedButton(onClick, Modifier.weight(1f)) { Text(text) }
++    }
++}
++
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/FinanciamentoScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/FinanciamentoScreen.kt
+new file mode 100644
+index 0000000..a219db5
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/FinanciamentoScreen.kt
+@@ -0,0 +1,62 @@
++package com.fleetflow.mobile.ui.screens
++
++import androidx.activity.compose.BackHandler
++import androidx.compose.foundation.background
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.rememberScrollState
++import androidx.compose.foundation.verticalScroll
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.unit.dp
++import com.fleetflow.mobile.data.model.DividaRequestDto
++import com.fleetflow.mobile.data.repository.FinanceRepository
++import com.fleetflow.mobile.data.repository.isoDate
++import com.fleetflow.mobile.ui.components.*
++import com.fleetflow.mobile.ui.theme.*
++import kotlinx.coroutines.launch
++import java.math.BigDecimal
++
++@Composable
++fun FinanciamentoScreen(onVoltarClick:()->Unit,formatarComoData:(String)->String={it}) {
++    BackHandler {onVoltarClick()}
++    var descricao by remember {mutableStateOf("")}
++    var valor by remember {mutableStateOf("")}
++    var quantidade by remember {mutableStateOf("")}
++    var vencimento by remember {mutableStateOf(hoje)}
++    var categoria by remember {mutableStateOf<String?>(null)}
++    var forma by remember {mutableStateOf<String?>(null)}
++    var busy by remember {mutableStateOf(false)}
++    var message by remember {mutableStateOf("")}
++    val scope=rememberCoroutineScope()
++    LaunchedEffect(Unit) {runCatching {FinanceRepository.catalogs()}.onFailure {message=it.message?:"Erro"}}
++    Column(Modifier.fillMaxSize()) {
++        Row(Modifier.fillMaxWidth().background(Petroleo).padding(8.dp)) {
++            TextButton(onClick=onVoltarClick){Text("Voltar",color=Branco)}
++            Text("FINANCIAMENTO",color=Branco,modifier=Modifier.padding(12.dp))
++        }
++        Column(Modifier.verticalScroll(rememberScrollState()).padding(16.dp),verticalArrangement=Arrangement.spacedBy(16.dp)) {
++            OutlinedTextField(value=descricao,onValueChange={descricao=it},label={Text("Descrição")},modifier=Modifier.fillMaxWidth())
++            MoneyField(value=valor,onValueChange={valor=it},label="Valor da parcela")
++            OutlinedTextField(value=quantidade,onValueChange={quantidade=it.filter(Char::isDigit)},label={Text("Quantidade de parcelas (1–480)")},modifier=Modifier.fillMaxWidth())
++            OutlinedTextField(value=vencimento,onValueChange={vencimento=it},label={Text("Primeiro vencimento dd/MM/aaaa")},modifier=Modifier.fillMaxWidth())
++            AppDropdown("Categoria",FinanceRepository.categorias.filter {it.tipo=="Saida"}.map {it.titulo},categoria,{categoria=it})
++            AppDropdown("Forma de pagamento",FORMAS,forma,{forma=it})
++            if(message.isNotBlank())Text(message,color=MaterialTheme.colorScheme.primary)
++            Button(enabled=!busy,onClick={scope.launch {
++                busy=true
++                runCatching {
++                    require(descricao.isNotBlank()) {"Informe a descrição"}
++                    val count=quantidade.toIntOrNull()?:0;require(count in 1..480) {"Informe de 1 a 480 parcelas"}
++                    val centavos=valor.toLongOrNull()?:0;require(centavos>0){"Informe um valor maior que zero"}
++                    val cat=FinanceRepository.categorias.firstOrNull {it.titulo==categoria}?:error("Selecione uma categoria")
++                    val method=FinanceRepository.formas.firstOrNull {it.nome==forma}?:error("Selecione uma forma de pagamento")
++                    val date=isoDate(vencimento)?:error("Informe uma data")
++                    FinanceRepository.createDivida(DividaRequestDto(descricao.trim(),cat.id,method.id,count,BigDecimal.valueOf(centavos,2).toPlainString(),date))
++                }.onSuccess {message="Financiamento e parcelas salvos na API";descricao="";valor="";quantidade=""}
++                 .onFailure {message=it.message?:"Falha ao salvar"}
++                busy=false
++            }},modifier=Modifier.fillMaxWidth()){Text(if(busy)"Salvando…" else "Salvar financiamento")}
++        }
++    }
++}
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/FormasPagamentoScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/FormasPagamentoScreen.kt
+new file mode 100644
+index 0000000..3ffa9f1
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/FormasPagamentoScreen.kt
+@@ -0,0 +1,148 @@
++package com.fleetflow.mobile.ui.screens
++
++import androidx.compose.foundation.layout.statusBarsPadding
++import androidx.compose.foundation.background
++import androidx.compose.foundation.clickable
++import androidx.compose.foundation.layout.*
++import androidx.compose.foundation.lazy.LazyColumn
++import androidx.compose.foundation.lazy.items
++import androidx.compose.foundation.shape.CircleShape
++import androidx.compose.foundation.shape.RoundedCornerShape
++import androidx.compose.material3.*
++import androidx.compose.runtime.*
++import androidx.compose.ui.Alignment
++import androidx.compose.ui.Modifier
++import androidx.compose.ui.draw.clip
++import androidx.compose.ui.text.font.FontWeight
++import androidx.compose.ui.unit.dp
++import androidx.compose.ui.unit.sp
++import com.fleetflow.mobile.data.model.FormaDto
++import com.fleetflow.mobile.data.repository.FinanceRepository
++import kotlinx.coroutines.launch
++import com.fleetflow.mobile.ui.theme.*
++
++@Composable
++fun FormasPagamentoScreen(onVoltarClick: () -> Unit, somenteLeitura:Boolean=false) {
++    var nomeNovo by remember { mutableStateOf("") }
++
++    val scope=rememberCoroutineScope()
++    var erro by remember {mutableStateOf<String?>(null)}
++    var busy by remember {mutableStateOf(false)}
++    suspend fun execute(action:suspend()->Unit) {busy=true;runCatching {action()}.onFailure {erro=it.message};busy=false}
++    LaunchedEffect(Unit) {execute {FinanceRepository.catalogs()}}
++    Scaffold(
++        containerColor = BackgroundTela,
++        topBar = {
++            Row(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .background(Petroleo)
++                    .statusBarsPadding()
++                    .padding(horizontal = 8.dp, vertical = 12.dp),
++                verticalAlignment = Alignment.CenterVertically
++            ) {
++                IconButton(onClick = onVoltarClick) {
++                    Text("←", color = Branco, fontSize = 22.sp)
++                }
++                Spacer(modifier = Modifier.width(8.dp))
++                Text("FORMAS DE PAGAMENTO", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
++            }
++        }
++    ) { padding ->
++        Column(
++            modifier = Modifier
++                .fillMaxSize()
++                .padding(padding)
++                .padding(16.dp)
++        ) {
++
++            erro?.let {Text(it,color=MaterialTheme.colorScheme.error)}
++            if(busy)LinearProgressIndicator(Modifier.fillMaxWidth())
++            if(!somenteLeitura)             Column(
++                modifier = Modifier
++                    .fillMaxWidth()
++                    .clip(RoundedCornerShape(12.dp))
++                    .background(SuperficieCard)
++                    .padding(16.dp)
++            ) {
++                Text("Nova forma de pagamento", color = TextoSecundario, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
++                Spacer(modifier = Modifier.height(8.dp))
++
++                OutlinedTextField(
++                    value = nomeNovo,
++                    onValueChange = { nomeNovo = it },
++                    placeholder = { Text("Nome") },
++                    singleLine = true,
++                    modifier = Modifier.fillMaxWidth(),
++                    colors = OutlinedTextFieldDefaults.colors(
++                        focusedBorderColor = Petroleo,
++                        unfocusedBorderColor = Divisor
++                    )
++                )
++
++                Spacer(modifier = Modifier.height(10.dp))
++
++                Button(
++                    onClick = {
++                        if (nomeNovo.isNotBlank()) {
++                            scope.launch {execute {FinanceRepository.createForma(nomeNovo.trim());nomeNovo=""}}
++                        }
++                    },
++                    modifier = Modifier.fillMaxWidth(),
++                    colors = ButtonDefaults.buttonColors(containerColor = Petroleo)
++                ) {
++                    Text("Adicionar", color = Branco, fontWeight = FontWeight.SemiBold)
++                }
++            }
++
++            Spacer(modifier = Modifier.height(16.dp))
++
++            LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
++                items(FinanceRepository.formas, key = { it.id }) { forma ->
++                    CardFormaPagamento(forma,somenteLeitura,{nome->scope.launch {execute {FinanceRepository.editForma(forma.id,nome)}}},{scope.launch {execute {FinanceRepository.deleteForma(forma.id)}}})
++                }
++            }
++        }
++    }
++}
++
++@Composable
++private fun CardFormaPagamento(forma: FormaDto,somenteLeitura:Boolean,onEdit:(String)->Unit,onDelete:()->Unit) {
++    Row(
++        modifier = Modifier
++            .fillMaxWidth()
++            .clip(RoundedCornerShape(12.dp))
++            .background(SuperficieCard)
++            .padding(14.dp),
++        verticalAlignment = Alignment.CenterVertically
++    ) {
++        Box(
++            modifier = Modifier
++                .size(36.dp)
++                .clip(CircleShape)
++                .background(AmbarDourado),
++            contentAlignment = Alignment.Center
++        ) {
++            Text(forma.nome.take(1), color = Petroleo, fontWeight = FontWeight.Bold, fontSize = 14.sp)
++        }
++
++        Spacer(modifier = Modifier.width(12.dp))
++
++        Text(forma.nome, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, modifier = Modifier.weight(1f))
++
++        if(forma.ehSistema || somenteLeitura) Text(if(forma.ehSistema) "Sistema" else "Leitura",color=TextoSecundario)
++        else {
++            var editando by remember {mutableStateOf(false)}
++            var nome by remember(forma.id) {mutableStateOf(forma.nome)}
++            var excluir by remember {mutableStateOf(false)}
++            Column {
++                TextButton(onClick={editando=true}){Text("Editar")}
++                TextButton(onClick={excluir=true}){Text("Excluir")}
++            }
++            if(editando)AlertDialog(onDismissRequest={editando=false},title={Text("Editar")},text={OutlinedTextField(value=nome,onValueChange={nome=it})},
++                confirmButton={TextButton(onClick={editando=false;onEdit(nome.trim())}){Text("Salvar")}},dismissButton={TextButton(onClick={editando=false}){Text("Cancelar")}})
++            if(excluir)AlertDialog(onDismissRequest={excluir=false},title={Text("Excluir cadastro?")},text={Text(forma.nome)},
++                confirmButton={TextButton(onClick={excluir=false;onDelete()}){Text("Excluir")}},dismissButton={TextButton(onClick={excluir=false}){Text("Cancelar")}})
++        }
++    }
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/ui/screens/HomeScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/HomeScreen.kt
+similarity index 78%
+rename from app/src/main/java/ui/screens/HomeScreen.kt
+rename to app/src/main/java/com/fleetflow/mobile/ui/screens/HomeScreen.kt
+index d17d0d2..390cc2b 100644
+--- a/app/src/main/java/ui/screens/HomeScreen.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/HomeScreen.kt
+@@ -9,7 +9,10 @@ import androidx.compose.foundation.verticalScroll
+ import androidx.compose.foundation.shape.CircleShape
+ import androidx.compose.foundation.shape.RoundedCornerShape
+ import androidx.compose.material3.*
+-import androidx.compose.runtime.Composable
++import androidx.compose.runtime.*
++import com.fleetflow.mobile.data.model.UserResponseDto
++import com.fleetflow.mobile.data.repository.FinanceRepository
++import com.fleetflow.mobile.data.MovimentacaoMensal
+ import androidx.compose.ui.Alignment
+ import androidx.compose.ui.Modifier
+ import androidx.compose.ui.draw.clip
+@@ -20,7 +23,11 @@ import com.fleetflow.mobile.data.MockDataService
+ import com.fleetflow.mobile.ui.theme.*
+ 
+ @Composable
+-fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
++fun HomeScreen(usuario:UserResponseDto,podeUsuarios:Boolean,onMovimentacoes:()->Unit,onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
++    var error by remember {mutableStateOf<String?>(null)}
++    LaunchedEffect(Unit) {runCatching {FinanceRepository.refreshSaldo()}.onFailure {error=it.message}}
++    val saldo=FinanceRepository.saldo
++    fun brl(v:String?)="R$ "+(v ?: "0.00").replace('.',',')
+     Scaffold(containerColor = BackgroundTela) { padding ->
+         Column(
+             modifier = Modifier
+@@ -47,28 +54,28 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+                         .clickable { onPerfilClick() },
+                     contentAlignment = Alignment.Center
+                 ) {
+-                    Text("JP", color = Petroleo, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
++                    Text(usuario.nome.split(" ").take(2).mapNotNull {it.firstOrNull()}.joinToString("").uppercase(), color = Petroleo, fontSize = 16.sp, fontWeight = FontWeight.SemiBold)
+                 }
+             }
+ 
+             Column(modifier = Modifier.padding(20.dp)) {
+ 
+-                Text("Ola, Joao Pedro", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
++                Text("Olá, ${usuario.nome}", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                 Text(
+-                    "Administrador - FleetFlow",
++                    "${usuario.perfil.nome} - FleetFlow",
+                     color = TextoSecundario,
+                     fontSize = 13.sp,
+                     modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                 )
+ 
+                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+-                    CardKpi("SALDO ATUAL", "R$ 32.850", VerdeEsmeralda, "+8,4%", Modifier.weight(1f))
+-                    CardKpi("A RECEBER", "R$ 12.400", null, null, Modifier.weight(1f))
++                    CardKpi("SALDO ATUAL", brl(saldo?.saldoAtual), VerdeEsmeralda, null, Modifier.weight(1f))
++                    CardKpi("A RECEBER", brl(saldo?.aReceber), null, null, Modifier.weight(1f))
+                 }
+                 Spacer(modifier = Modifier.height(12.dp))
+                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+-                    CardKpi("A PAGAR", "R$ 8.150", null, null, Modifier.weight(1f))
+-                    CardKpi("EM VIAGEM", "3", null, null, Modifier.weight(1f))
++                    CardKpi("A PAGAR", brl(saldo?.aPagar), null, null, Modifier.weight(1f))
++                    CardKpi("SALDO PREVISTO", brl(saldo?.saldoPrevisto), null, null, Modifier.weight(1f))
+                 }
+ 
+                 Spacer(modifier = Modifier.height(16.dp))
+@@ -84,7 +91,7 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+                     Text("INSIGHT", color = AmbarDourado, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                     Spacer(modifier = Modifier.height(6.dp))
+                     Text(
+-                        "Suas despesas com combustivel subiram 12% em relacao ao mes passado.",
++                        error ?: "O saldo atual considera receitas e despesas pagas. O previsto inclui lançamentos pendentes.",
+                         color = TextoPrincipal,
+                         fontSize = 13.sp
+                     )
+@@ -110,13 +117,13 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+ 
+                     Spacer(modifier = Modifier.height(12.dp))
+ 
+-                    GraficoReceitasDespesas(dados = MockDataService.obterMovimentacoesMensais())
++                    GraficoReceitasDespesas(dados = listOf(MovimentacaoMensal("Pago",saldo?.receitasPagas?.toDoubleOrNull()?:0.0,saldo?.despesasPagas?.toDoubleOrNull()?:0.0)))
+                 }
+ 
+                 Spacer(modifier = Modifier.height(16.dp))
+ 
+                 Button(
+-                    onClick = { },
++                    onClick = onMovimentacoes,
+                     modifier = Modifier
+                         .fillMaxWidth()
+                         .height(48.dp),
+@@ -128,7 +135,7 @@ fun HomeScreen(onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
+ 
+                 Spacer(modifier = Modifier.height(12.dp))
+ 
+-                Button(
++                if(podeUsuarios) Button(
+                     onClick = onUsuariosClick,
+                     modifier = Modifier
+                         .fillMaxWidth()
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/LoginScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/LoginScreen.kt
+index 59e550d..ef9e07d 100644
+--- a/app/src/main/java/com/fleetflow/mobile/ui/screens/LoginScreen.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/LoginScreen.kt
+@@ -23,21 +23,51 @@ import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+ import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+ import com.fleetflow.mobile.R
+ import com.fleetflow.mobile.data.model.UserResponseDto
++import com.fleetflow.mobile.data.repository.ApiException
+ import com.fleetflow.mobile.data.repository.AuthRepository
+ import com.fleetflow.mobile.ui.theme.*
+ import kotlinx.coroutines.launch
+ 
++// Usuários de teste inseridos no banco (um por perfil) para validar o app sem
++// depender de uma conta Google real. Exigem DEV_LOGIN=true na API (uso local).
++private data class PerfilDeTeste(val rotulo: String, val email: String)
++
++private val PERFIS_DE_TESTE = listOf(
++    PerfilDeTeste("Administrador", "admin.teste@fleetflow.com"),
++    PerfilDeTeste("Financeiro", "financeiro.teste@fleetflow.com"),
++    PerfilDeTeste("Gestor de Frota", "gestorfrota.teste@fleetflow.com"),
++    PerfilDeTeste("Operador Motorista", "motorista.teste@fleetflow.com"),
++)
++
+ @Composable
+ fun LoginScreen(
+     onLoginSuccess: () -> Unit = {},
+-    onUserLoginSuccess: (UserResponseDto) -> Unit = { onLoginSuccess() }
++    onUserLoginSuccess: (UserResponseDto) -> Unit = { onLoginSuccess() },
++    onAccountPending: () -> Unit = {},
++    onAccountBlocked: () -> Unit = {}
+ ) {
+     var carregando by remember { mutableStateOf(false) }
+     var errorMessage by remember { mutableStateOf<String?>(null) }
++    var mostrarPerfisDeTeste by remember { mutableStateOf(false) }
+     val context = LocalContext.current
+     val authRepository = remember { AuthRepository(context) }
+     val coroutineScope = rememberCoroutineScope()
+ 
++    fun tratarResultado(result: Result<UserResponseDto>) {
++        if (result.isSuccess) {
++            onUserLoginSuccess(result.getOrThrow())
++            return
++        }
++        val erro = result.exceptionOrNull()
++        if (erro is ApiException) {
++            when (erro.code) {
++                "ACCOUNT_PENDING" -> { onAccountPending(); return }
++                "ACCOUNT_BLOCKED", "ACCOUNT_DISABLED" -> { onAccountBlocked(); return }
++            }
++        }
++        errorMessage = erro?.message ?: "Falha no login."
++    }
++
+     fun performRealGoogleLogin() {
+         coroutineScope.launch {
+             carregando = true
+@@ -61,18 +91,12 @@ fun LoginScreen(
+                 if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                     val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+                     val idToken = googleIdTokenCredential.idToken
+-
+-                    val apiResult = authRepository.loginWithGoogle(idToken)
+-                    if (apiResult.isSuccess) {
+-                        onUserLoginSuccess(apiResult.getOrThrow())
+-                    } else {
+-                        errorMessage = "Erro no login: ${apiResult.exceptionOrNull()?.message}"
+-                    }
++                    tratarResultado(authRepository.loginWithGoogle(idToken))
+                 } else {
+                     errorMessage = "Tipo de credencial inválido."
+                 }
+             } catch (ex: NoCredentialException) {
+-                errorMessage = "Nenhuma conta Google encontrada no dispositivo. Adicione uma conta Google nas Configurações do Android ou utilize o Modo Desenvolvedor abaixo."
++                errorMessage = "Nenhuma conta Google encontrada no dispositivo. Adicione uma conta Google nas Configurações do Android ou use um perfil de teste abaixo."
+             } catch (ex: GetCredentialCancellationException) {
+                 errorMessage = "Login com Google cancelado pelo usuário."
+             } catch (ex: GetCredentialException) {
+@@ -85,16 +109,11 @@ fun LoginScreen(
+         }
+     }
+ 
+-    fun performMockDevLogin() {
++    fun performDevLogin(email: String) {
+         coroutineScope.launch {
+             carregando = true
+             errorMessage = null
+-            val result = authRepository.loginWithGoogle("mock-id-token:dev-user-1:joao.pedro@fleetflow.com:João Pedro")
+-            if (result.isSuccess) {
+-                onUserLoginSuccess(result.getOrThrow())
+-            } else {
+-                onLoginSuccess()
+-            }
++            tratarResultado(authRepository.loginDev(email))
+             carregando = false
+         }
+     }
+@@ -152,17 +171,51 @@ fun LoginScreen(
+ 
+             Spacer(modifier = Modifier.height(12.dp))
+ 
+-            TextButton(
+-                onClick = { performMockDevLogin() },
++            if(com.fleetflow.mobile.BuildConfig.DEBUG) TextButton(
++                onClick = { mostrarPerfisDeTeste = !mostrarPerfisDeTeste },
+                 enabled = !carregando
+             ) {
+                 Text(
+-                    text = "Modo Desenvolvedor / Emulador (Mock Login)",
++                    text = "Modo Desenvolvedor / Emulador (perfis de teste)",
+                     fontSize = 12.sp,
+                     color = AzulGoogle
+                 )
+             }
+ 
++            if (mostrarPerfisDeTeste) {
++                Column(
++                    modifier = Modifier.fillMaxWidth(),
++                    horizontalAlignment = Alignment.CenterHorizontally
++                ) {
++                    PERFIS_DE_TESTE.forEach { perfil ->
++                        Spacer(modifier = Modifier.height(8.dp))
++                        Surface(
++                            modifier = Modifier
++                                .fillMaxWidth()
++                                .height(44.dp),
++                            shape = RoundedCornerShape(10.dp),
++                            border = BorderStroke(1.dp, CinzaSuave),
++                            color = MaterialTheme.colorScheme.surface
++                        ) {
++                            Row(
++                                modifier = Modifier
++                                    .fillMaxSize()
++                                    .clickable(enabled = !carregando) { performDevLogin(perfil.email) },
++                                horizontalArrangement = Arrangement.Center,
++                                verticalAlignment = Alignment.CenterVertically
++                            ) {
++                                Text(
++                                    text = "Entrar como ${perfil.rotulo}",
++                                    color = Petroleo,
++                                    fontWeight = FontWeight.SemiBold,
++                                    fontSize = 14.sp
++                                )
++                            }
++                        }
++                    }
++                }
++            }
++
+             if (carregando) {
+                 Spacer(modifier = Modifier.height(16.dp))
+                 CircularProgressIndicator(color = AmbarDourado)
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/MovimentacaoScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/MovimentacaoScreen.kt
+new file mode 100644
+index 0000000..5cb1b16
+--- /dev/null
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/MovimentacaoScreen.kt
+@@ -0,0 +1,4 @@
++package com.fleetflow.mobile.ui.screens
++import androidx.compose.runtime.Composable
++@Composable
++fun MovimentacaoScreen(onVoltarClick:()->Unit) {FinancasScreen(onMessage={})}
+diff --git a/app/src/main/java/ui/screens/PerfilScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/PerfilScreen.kt
+similarity index 94%
+rename from app/src/main/java/ui/screens/PerfilScreen.kt
+rename to app/src/main/java/com/fleetflow/mobile/ui/screens/PerfilScreen.kt
+index 2b5c410..10e8732 100644
+--- a/app/src/main/java/ui/screens/PerfilScreen.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/PerfilScreen.kt
+@@ -22,9 +22,9 @@ fun PerfilScreen(
+     user: UserResponseDto? = null,
+     onSairClick: () -> Unit
+ ) {
+-    val nomeExibicao = user?.name ?: "Nome do Usuário"
++    val nomeExibicao = user?.nome ?: "Nome do Usuário"
+     val iniciais = nomeExibicao.split(" ").take(2).mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("")
+-    val perfilTexto = if (user?.role == "ADMINISTRATOR") "Administrador" else user?.role ?: "Administrador"
++    val perfilTexto = user?.perfil?.nome ?: "Administrador"
+ 
+     Scaffold(containerColor = BackgroundTela) { padding ->
+         Column(
+@@ -74,4 +74,4 @@ fun PerfilScreen(
+             Spacer(modifier = Modifier.height(24.dp))
+         }
+     }
+-}
++}
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/screens/UsuariosScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/UsuariosScreen.kt
+index 3932996..1bf049a 100644
+--- a/app/src/main/java/com/fleetflow/mobile/ui/screens/UsuariosScreen.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/screens/UsuariosScreen.kt
+@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.unit.dp
+ import androidx.compose.ui.unit.sp
+ import com.fleetflow.mobile.data.auth.AuthorizationManager
++import com.fleetflow.mobile.data.model.PerfilDto
+ import com.fleetflow.mobile.data.model.UserResponseDto
+ import com.fleetflow.mobile.data.repository.AuthRepository
+ import com.fleetflow.mobile.ui.theme.*
+@@ -24,19 +25,20 @@ import kotlinx.coroutines.launch
+ 
+ @Composable
+ fun UsuariosScreen(
+-    user: UserResponseDto?,
++    permissoes: Map<String, String?> = emptyMap(),
+     onVoltarClick: () -> Unit
+ ) {
+     val context = LocalContext.current
+     val authRepository = remember { AuthRepository(context) }
+-    val authorizationManager = remember(user) { AuthorizationManager(user?.role) }
++    val authorizationManager = remember(permissoes) { AuthorizationManager(permissoes) }
+     val coroutineScope = rememberCoroutineScope()
+ 
+     var usuarios by remember { mutableStateOf<List<UserResponseDto>>(emptyList()) }
++    var perfis by remember { mutableStateOf<List<PerfilDto>>(emptyList()) }
+     var carregando by remember { mutableStateOf(true) }
+     var errorMessage by remember { mutableStateOf<String?>(null) }
+     var selectedUserForRoleChange by remember { mutableStateOf<UserResponseDto?>(null) }
+-    var pendingRoleChange by remember { mutableStateOf<Pair<UserResponseDto, String>?>(null) }
++    var pendingRoleChange by remember { mutableStateOf<Pair<UserResponseDto, PerfilDto>?>(null) }
+ 
+     fun carregarUsuarios() {
+         coroutineScope.launch {
+@@ -48,11 +50,14 @@ fun UsuariosScreen(
+             } else {
+                 errorMessage = result.exceptionOrNull()?.message ?: "Erro ao carregar usuários."
+             }
++            if (authorizationManager.canChangeUserRole()) {
++                authRepository.getPerfis().onSuccess { perfis = it }
++            }
+             carregando = false
+         }
+     }
+ 
+-    LaunchedEffect(Unit) {
++    LaunchedEffect(permissoes) {
+         if (authorizationManager.canManageUsers()) {
+             carregarUsuarios()
+         } else {
+@@ -158,25 +163,24 @@ fun UsuariosScreen(
+         }
+     }
+ 
+-    // Dialog for Role Selection (Admin only - double guarded)
++    // Dialog de seleção de perfil (só quem pode editar usuários)
+     if (selectedUserForRoleChange != null && authorizationManager.canChangeUserRole()) {
+         AlertDialog(
+             onDismissRequest = { selectedUserForRoleChange = null },
+-            title = { Text("Alterar Perfil (Role)") },
++            title = { Text("Alterar perfil") },
+             text = {
+                 Column {
+-                    Text("Selecione o novo perfil para ${selectedUserForRoleChange!!.name}:")
++                    Text("Selecione o novo perfil para ${selectedUserForRoleChange!!.nome}:")
+                     Spacer(modifier = Modifier.height(8.dp))
+-                    val roles = listOf("ADMINISTRATOR", "FLEET_MANAGER", "FINANCIAL", "DRIVER")
+-                    roles.forEach { role ->
++                    perfis.forEach { perfil ->
+                         TextButton(
+                             onClick = {
+                                 val targetUser = selectedUserForRoleChange!!
+                                 selectedUserForRoleChange = null
+-                                pendingRoleChange = Pair(targetUser, role)
++                                pendingRoleChange = Pair(targetUser, perfil)
+                             }
+                         ) {
+-                            Text(role, fontWeight = FontWeight.Bold, color = Petroleo)
++                            Text(perfil.nome, fontWeight = FontWeight.Bold, color = Petroleo)
+                         }
+                     }
+                 }
+@@ -190,27 +194,25 @@ fun UsuariosScreen(
+         )
+     }
+ 
+-    // Second Dialog: Confirmation for Role Change (Admin only - double guarded)
++    // Segundo dialog: confirmação da troca de perfil
+     if (pendingRoleChange != null && authorizationManager.canChangeUserRole()) {
+-        val (targetUser, newRole) = pendingRoleChange!!
++        val (targetUser, novoPerfil) = pendingRoleChange!!
+         AlertDialog(
+             onDismissRequest = { pendingRoleChange = null },
+             title = { Text("Alterar perfil?") },
+             text = {
+-                Text("Você está alterando o perfil de ${targetUser.name} para $newRole. Essa alteração modificará as permissões desse usuário.")
++                Text("Você está alterando o perfil de ${targetUser.nome} para ${novoPerfil.nome}. Essa alteração modificará as permissões desse usuário.")
+             },
+             confirmButton = {
+                 Button(
+                     onClick = {
+                         pendingRoleChange = null
+-                        if (authorizationManager.canChangeUserRole()) {
+-                            coroutineScope.launch {
+-                                val res = authRepository.updateUserRole(targetUser.id, newRole)
+-                                if (res.isSuccess) {
+-                                    carregarUsuarios()
+-                                } else {
+-                                    errorMessage = res.exceptionOrNull()?.message
+-                                }
++                        coroutineScope.launch {
++                            val res = authRepository.updateUserPerfil(targetUser.id, novoPerfil.id)
++                            if (res.isSuccess) {
++                                carregarUsuarios()
++                            } else {
++                                errorMessage = res.exceptionOrNull()?.message
+                             }
+                         }
+                     },
+@@ -252,7 +254,7 @@ private fun CardUsuario(
+                 contentAlignment = Alignment.Center
+             ) {
+                 Text(
+-                    usuario.name.take(1).uppercase(),
++                    usuario.nome.take(1).uppercase(),
+                     color = Petroleo,
+                     fontWeight = FontWeight.Bold,
+                     fontSize = 16.sp
+@@ -262,7 +264,7 @@ private fun CardUsuario(
+             Spacer(modifier = Modifier.width(12.dp))
+ 
+             Column(modifier = Modifier.weight(1f)) {
+-                Text(usuario.name, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
++                Text(usuario.nome, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                 Text(usuario.email, color = TextoSecundario, fontSize = 12.sp)
+             }
+ 
+@@ -284,7 +286,7 @@ private fun CardUsuario(
+                     .padding(horizontal = 10.dp, vertical = 4.dp)
+             ) {
+                 Text(
+-                    text = "${usuario.role} ${if (canChangeRole) "✎" else ""}",
++                    text = "${usuario.perfil.nome} ${if (canChangeRole) "✎" else ""}",
+                     color = CinzaBadge,
+                     fontSize = 11.sp,
+                     fontWeight = FontWeight.SemiBold
+@@ -293,7 +295,7 @@ private fun CardUsuario(
+ 
+             Spacer(modifier = Modifier.weight(1f))
+ 
+-            if (usuario.status == "PENDING" && canApprove) {
++            if (usuario.status == "AguardandoAprovacao" && canApprove) {
+                 Box(
+                     modifier = Modifier
+                         .clip(RoundedCornerShape(8.dp))
+@@ -310,7 +312,7 @@ private fun CardUsuario(
+ 
+ @Composable
+ private fun BadgeStatus(status: String) {
+-    val isAtivo = status == "ACTIVE"
++    val isAtivo = status == "Ativo"
+     val cor = if (isAtivo) VerdeSuave else FundoInsight
+     val corTexto = if (isAtivo) VerdeEsmeralda else AmbarAlerta
+ 
+diff --git a/app/src/main/java/ui/screens/WelcomeScreen.kt b/app/src/main/java/com/fleetflow/mobile/ui/screens/WelcomeScreen.kt
+similarity index 100%
+rename from app/src/main/java/ui/screens/WelcomeScreen.kt
+rename to app/src/main/java/com/fleetflow/mobile/ui/screens/WelcomeScreen.kt
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/theme/Color.kt b/app/src/main/java/com/fleetflow/mobile/ui/theme/Color.kt
+index 857638d..dbf70a6 100644
+--- a/app/src/main/java/com/fleetflow/mobile/ui/theme/Color.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/theme/Color.kt
+@@ -2,19 +2,22 @@ package com.fleetflow.mobile.ui.theme
+ 
+ import androidx.compose.ui.graphics.Color
+ 
+-val Petroleo = Color(0xFF0F3B5F)
+-val AmbarDourado = Color(0xFFF5A524)
+-val VerdeEsmeralda = Color(0xFF059669)
+-val Vermelho = Color(0xFFDC2626)
++// Os nomes continuam os mesmos, porque as telas do grupo usam eles direto.
++// Os valores foram alinhados à especificação (comentário mostra o valor antigo).
++val Petroleo = Color(0xFF123A63)        // azul-marinho primário (era 0F3B5F)
++val AmbarDourado = Color(0xFFF59E28)    // laranja de acento (era F5A524)
++val VerdeEsmeralda = Color(0xFF2E7D32)  // entradas e positivo (era 059669)
++val Vermelho = Color(0xFFB3261E)        // erro e saídas (era DC2626)
+ val AmbarAlerta = Color(0xFFF59E0B)
+ val AzulInfo = Color(0xFF0891B2)
+ 
+-val TextoPrincipal = Color(0xFF0F172A)
+-val TextoSecundario = Color(0xFF475569)
++val TextoPrincipal = Color(0xFF12233A)  // era 0F172A
++val TextoSecundario = Color(0xFF5E6B7E) // era 475569
+ val PlaceholderCor = Color(0xFF94A3B8)
+ val Divisor = Color(0xFFE2E8F0)
++val Contorno = Color(0xFFC4CBD6)        // novo: borda de campos
+ 
+-val BackgroundTela = Color(0xFFF8FAFC)
++val BackgroundTela = Color(0xFFEEF1F5)  // era F8FAFC
+ val SuperficieCard = Color(0xFFFFFFFF)
+ val FundoInsight = Color(0xFFFFFBEB)
+ 
+@@ -23,4 +26,15 @@ val VermelhoSuave = Color(0xFFFEE2E2)
+ val CinzaSuave = Color(0xFFF1F5F9)
+ val CinzaBadge = Color(0xFF64748B)
+ val AzulGoogle = Color(0xFF4285F4)
+-val Branco = Color(0xFFFFFFFF)
+\ No newline at end of file
++val Branco = Color(0xFFFFFFFF)
++
++// Tema escuro (novo). No escuro o azul-marinho some no fundo, então o primário clareia.
++val AzulPrimarioEscuro = Color(0xFF4A86C8)
++val FundoEscuro = Color(0xFF0E1B2A)
++val SuperficieEscura = Color(0xFF16243A)
++val SuperficieVariantEscura = Color(0xFF22324A)
++val TextoEscuro = Color(0xFFE6EAF0)
++val TextoSecundarioEscuro = Color(0xFFAAB4C3)
++val ContornoEscuro = Color(0xFF38465C)
++val ErroEscuro = Color(0xFFF2B8B5)
++val VerdeEscuro = Color(0xFF81C784)
+\ No newline at end of file
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/theme/Theme.kt b/app/src/main/java/com/fleetflow/mobile/ui/theme/Theme.kt
+index f7878e3..181a866 100644
+--- a/app/src/main/java/com/fleetflow/mobile/ui/theme/Theme.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/theme/Theme.kt
+@@ -1,6 +1,5 @@
+ package com.fleetflow.mobile.ui.theme
+ 
+-import android.app.Activity
+ import android.os.Build
+ import androidx.compose.foundation.isSystemInDarkTheme
+ import androidx.compose.material3.MaterialTheme
+@@ -11,31 +10,44 @@ import androidx.compose.material3.lightColorScheme
+ import androidx.compose.runtime.Composable
+ import androidx.compose.ui.platform.LocalContext
+ 
+-private val DarkColorScheme = darkColorScheme(
+-    primary = AmbarDourado,
+-    secondary = Petroleo,
+-    tertiary = VerdeEsmeralda,
+-    background = Petroleo,
+-    surface = Petroleo
+-)
+-
+ private val LightColorScheme = lightColorScheme(
+     primary = Petroleo,
++    onPrimary = Branco,
+     secondary = AmbarDourado,
++    onSecondary = TextoPrincipal,   // texto sobre laranja é escuro, nunca branco
+     tertiary = VerdeEsmeralda,
++    onTertiary = Branco,
++    error = Vermelho,
++    onError = Branco,
+     background = BackgroundTela,
++    onBackground = TextoPrincipal,
+     surface = SuperficieCard,
++    onSurface = TextoPrincipal,
++    surfaceVariant = CinzaSuave,
++    onSurfaceVariant = TextoSecundario,
++    outline = Contorno,
++)
++
++private val DarkColorScheme = darkColorScheme(
++    primary = AzulPrimarioEscuro,
+     onPrimary = Branco,
+-    onSecondary = Petroleo,
+-    onBackground = TextoPrincipal,
+-    onSurface = TextoPrincipal
++    secondary = AmbarDourado,
++    onSecondary = TextoPrincipal,
++    tertiary = VerdeEscuro,
++    error = ErroEscuro,
++    background = FundoEscuro,
++    onBackground = TextoEscuro,
++    surface = SuperficieEscura,
++    onSurface = TextoEscuro,
++    surfaceVariant = SuperficieVariantEscura,
++    onSurfaceVariant = TextoSecundarioEscuro,
++    outline = ContornoEscuro,
+ )
+ 
+ @Composable
+ fun FleetFlowTheme(
+     darkTheme: Boolean = isSystemInDarkTheme(),
+-    // Desligado: o FleetFlow tem cor de marca própria e não deve
+-    // seguir o papel de parede do usuário (recurso do Android 12+)
++    // Desligado: o FleetFlow tem cor de marca própria e não segue o papel de parede (Android 12+)
+     dynamicColor: Boolean = false,
+     content: @Composable () -> Unit
+ ) {
+@@ -44,7 +56,6 @@ fun FleetFlowTheme(
+             val context = LocalContext.current
+             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+         }
+-
+         darkTheme -> DarkColorScheme
+         else -> LightColorScheme
+     }
+diff --git a/app/src/main/java/com/fleetflow/mobile/ui/theme/Type.kt b/app/src/main/java/com/fleetflow/mobile/ui/theme/Type.kt
+index 8d64b60..70d04f1 100644
+--- a/app/src/main/java/com/fleetflow/mobile/ui/theme/Type.kt
++++ b/app/src/main/java/com/fleetflow/mobile/ui/theme/Type.kt
+@@ -6,29 +6,18 @@ import androidx.compose.ui.text.font.FontFamily
+ import androidx.compose.ui.text.font.FontWeight
+ import androidx.compose.ui.unit.sp
+ 
+-// Set of Material typography styles to start with
++// Escala da especificação: 32 / 24 / 16 / 14 / 12.
+ val Typography = Typography(
++    displaySmall = TextStyle(fontFamily = FontFamily.Default, fontSize = 32.sp, fontWeight = FontWeight.SemiBold),
++    headlineSmall = TextStyle(fontFamily = FontFamily.Default, fontSize = 24.sp, fontWeight = FontWeight.SemiBold),
++    titleMedium = TextStyle(fontFamily = FontFamily.Default, fontSize = 16.sp, fontWeight = FontWeight.SemiBold),
+     bodyLarge = TextStyle(
+         fontFamily = FontFamily.Default,
+         fontWeight = FontWeight.Normal,
+         fontSize = 16.sp,
+         lineHeight = 24.sp,
+         letterSpacing = 0.5.sp
+-    )
+-    /* Other default text styles to override
+-    titleLarge = TextStyle(
+-        fontFamily = FontFamily.Default,
+-        fontWeight = FontWeight.Normal,
+-        fontSize = 22.sp,
+-        lineHeight = 28.sp,
+-        letterSpacing = 0.sp
+     ),
+-    labelSmall = TextStyle(
+-        fontFamily = FontFamily.Default,
+-        fontWeight = FontWeight.Medium,
+-        fontSize = 11.sp,
+-        lineHeight = 16.sp,
+-        letterSpacing = 0.5.sp
+-    )
+-    */
++    bodyMedium = TextStyle(fontFamily = FontFamily.Default, fontSize = 14.sp, fontWeight = FontWeight.Normal),
++    labelSmall = TextStyle(fontFamily = FontFamily.Default, fontSize = 12.sp, fontWeight = FontWeight.Medium),
+ )
+\ No newline at end of file
+diff --git a/app/src/main/java/ui/screens/LoginScreen.kt b/app/src/main/java/ui/screens/LoginScreen.kt
+deleted file mode 100644
+index 7269bf9..0000000
+--- a/app/src/main/java/ui/screens/LoginScreen.kt
++++ /dev/null
+@@ -1,191 +0,0 @@
+-package ui.screens
+-
+-import androidx.compose.foundation.BorderStroke
+-import androidx.compose.foundation.clickable
+-import androidx.compose.foundation.layout.*
+-import androidx.compose.foundation.shape.RoundedCornerShape
+-import androidx.compose.material3.*
+-import androidx.compose.runtime.*
+-import androidx.compose.ui.Alignment
+-import androidx.compose.ui.Modifier
+-import androidx.compose.ui.platform.LocalContext
+-import androidx.compose.ui.text.font.FontWeight
+-import androidx.compose.ui.text.style.TextAlign
+-import androidx.compose.ui.unit.dp
+-import androidx.compose.ui.unit.sp
+-import androidx.credentials.CredentialManager
+-import androidx.credentials.GetCredentialRequest
+-import androidx.credentials.CustomCredential
+-import androidx.credentials.exceptions.GetCredentialException
+-import androidx.credentials.exceptions.NoCredentialException
+-import androidx.credentials.exceptions.GetCredentialCancellationException
+-import com.google.android.libraries.identity.googleid.GetGoogleIdOption
+-import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
+-import com.fleetflow.mobile.R
+-import com.fleetflow.mobile.data.model.UserResponseDto
+-import com.fleetflow.mobile.data.repository.AuthRepository
+-import com.fleetflow.mobile.ui.theme.*
+-import kotlinx.coroutines.launch
+-
+-@Composable
+-fun LoginScreen(
+-    onLoginSuccess: () -> Unit = {},
+-    onUserLoginSuccess: (UserResponseDto) -> Unit = { onLoginSuccess() }
+-) {
+-    var carregando by remember { mutableStateOf(false) }
+-    var errorMessage by remember { mutableStateOf<String?>(null) }
+-    val context = LocalContext.current
+-    val authRepository = remember { AuthRepository(context) }
+-    val coroutineScope = rememberCoroutineScope()
+-
+-    fun performRealGoogleLogin() {
+-        coroutineScope.launch {
+-            carregando = true
+-            errorMessage = null
+-            try {
+-                val credentialManager = CredentialManager.create(context)
+-                val webClientId = context.getString(R.string.default_web_client_id)
+-
+-                val googleIdOption = GetGoogleIdOption.Builder()
+-                    .setServerClientId(webClientId)
+-                    .setFilterByAuthorizedAccounts(false)
+-                    .build()
+-
+-                val request = GetCredentialRequest.Builder()
+-                    .addCredentialOption(googleIdOption)
+-                    .build()
+-
+-                val result = credentialManager.getCredential(context, request)
+-                val credential = result.credential
+-
+-                if (credential is CustomCredential && credential.type == GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+-                    val googleIdTokenCredential = GoogleIdTokenCredential.createFrom(credential.data)
+-                    val idToken = googleIdTokenCredential.idToken
+-
+-                    val apiResult = authRepository.loginWithGoogle(idToken)
+-                    if (apiResult.isSuccess) {
+-                        onUserLoginSuccess(apiResult.getOrThrow())
+-                    } else {
+-                        errorMessage = "Erro no login: ${apiResult.exceptionOrNull()?.message}"
+-                    }
+-                } else {
+-                    errorMessage = "Tipo de credencial inválido."
+-                }
+-            } catch (ex: NoCredentialException) {
+-                errorMessage = "Nenhuma conta Google encontrada no dispositivo. Adicione uma conta Google nas Configurações do Android ou utilize o Modo Desenvolvedor abaixo."
+-            } catch (ex: GetCredentialCancellationException) {
+-                errorMessage = "Login com Google cancelado pelo usuário."
+-            } catch (ex: GetCredentialException) {
+-                errorMessage = "Login Google falhou: ${ex.message}"
+-            } catch (ex: Exception) {
+-                errorMessage = "Erro inesperado: ${ex.message}"
+-            } finally {
+-                carregando = false
+-            }
+-        }
+-    }
+-
+-    fun performMockDevLogin() {
+-        coroutineScope.launch {
+-            carregando = true
+-            errorMessage = null
+-            val result = authRepository.loginWithGoogle("mock-id-token:dev-user-1:joao.pedro@fleetflow.com:João Pedro")
+-            if (result.isSuccess) {
+-                onUserLoginSuccess(result.getOrThrow())
+-            } else {
+-                onLoginSuccess()
+-            }
+-            carregando = false
+-        }
+-    }
+-
+-    Scaffold(containerColor = BackgroundTela) { padding ->
+-        Column(
+-            modifier = Modifier
+-                .fillMaxSize()
+-                .padding(padding)
+-                .padding(horizontal = 24.dp),
+-            horizontalAlignment = Alignment.CenterHorizontally,
+-            verticalArrangement = Arrangement.Center
+-        ) {
+-            Text(
+-                text = "FleetFlow",
+-                fontSize = 28.sp,
+-                fontWeight = FontWeight.Bold,
+-                color = Petroleo,
+-                textAlign = TextAlign.Center
+-            )
+-
+-            Spacer(modifier = Modifier.height(8.dp))
+-
+-            Text(
+-                text = "Bem-vindo de volta",
+-                fontSize = 16.sp,
+-                color = TextoSecundario,
+-                textAlign = TextAlign.Center
+-            )
+-
+-            Spacer(modifier = Modifier.height(40.dp))
+-
+-            Surface(
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .height(48.dp),
+-                shape = RoundedCornerShape(12.dp),
+-                border = BorderStroke(2.dp, Petroleo),
+-                color = MaterialTheme.colorScheme.surface
+-            ) {
+-                Row(
+-                    modifier = Modifier
+-                        .fillMaxSize()
+-                        .clickable(enabled = !carregando) {
+-                            performRealGoogleLogin()
+-                        },
+-                    horizontalArrangement = Arrangement.Center,
+-                    verticalAlignment = Alignment.CenterVertically
+-                ) {
+-                    Text("G", color = AzulGoogle, fontWeight = FontWeight.SemiBold, fontSize = 20.sp)
+-                    Spacer(modifier = Modifier.width(12.dp))
+-                    Text("Entrar com Google", color = Petroleo, fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+-                }
+-            }
+-
+-            Spacer(modifier = Modifier.height(12.dp))
+-
+-            TextButton(
+-                onClick = { performMockDevLogin() },
+-                enabled = !carregando
+-            ) {
+-                Text(
+-                    text = "Modo Desenvolvedor / Emulador (Mock Login)",
+-                    fontSize = 12.sp,
+-                    color = AzulGoogle
+-                )
+-            }
+-
+-            if (carregando) {
+-                Spacer(modifier = Modifier.height(16.dp))
+-                CircularProgressIndicator(color = AmbarDourado)
+-            }
+-
+-            if (errorMessage != null) {
+-                Spacer(modifier = Modifier.height(16.dp))
+-                Text(
+-                    text = errorMessage!!,
+-                    fontSize = 12.sp,
+-                    color = MaterialTheme.colorScheme.error,
+-                    textAlign = TextAlign.Center
+-                )
+-            }
+-
+-            Spacer(modifier = Modifier.height(32.dp))
+-
+-            Text(
+-                text = "Ao entrar, você concorda com os termos de uso",
+-                fontSize = 12.sp,
+-                color = PlaceholderCor,
+-                textAlign = TextAlign.Center
+-            )
+-        }
+-    }
+-}
+diff --git a/app/src/main/java/ui/screens/UsuariosScreen.kt b/app/src/main/java/ui/screens/UsuariosScreen.kt
+deleted file mode 100644
+index 8c77544..0000000
+--- a/app/src/main/java/ui/screens/UsuariosScreen.kt
++++ /dev/null
+@@ -1,148 +0,0 @@
+-package com.fleetflow.mobile.ui.screens
+-
+-import androidx.compose.foundation.background
+-import androidx.compose.foundation.clickable
+-import androidx.compose.foundation.layout.*
+-import androidx.compose.foundation.lazy.LazyColumn
+-import androidx.compose.foundation.lazy.items
+-import androidx.compose.foundation.shape.CircleShape
+-import androidx.compose.foundation.shape.RoundedCornerShape
+-import androidx.compose.material3.*
+-import androidx.compose.runtime.*
+-import androidx.compose.ui.Alignment
+-import androidx.compose.ui.Modifier
+-import androidx.compose.ui.draw.clip
+-import androidx.compose.ui.graphics.Color
+-import androidx.compose.ui.text.font.FontWeight
+-import androidx.compose.ui.unit.dp
+-import androidx.compose.ui.unit.sp
+-import com.fleetflow.mobile.data.MockDataService
+-import com.fleetflow.mobile.data.Usuario
+-import com.fleetflow.mobile.data.obterUsuarios
+-import com.fleetflow.mobile.ui.theme.*
+-
+-@Composable
+-fun UsuariosScreen(onVoltarClick: () -> Unit) {
+-    var usuarios by remember { mutableStateOf(MockDataService.obterUsuarios()) }
+-
+-    Scaffold(
+-        containerColor = BackgroundTela,
+-        topBar = {
+-            Row(
+-                modifier = Modifier
+-                    .fillMaxWidth()
+-                    .background(Petroleo)
+-                    .padding(horizontal = 16.dp, vertical = 20.dp),
+-                verticalAlignment = Alignment.CenterVertically
+-            ) {
+-                Box(
+-                    modifier = Modifier
+-                        .clickable { onVoltarClick() }
+-                        .padding(8.dp)
+-                ) {
+-                    Text("←", color = Branco, fontSize = 22.sp)
+-                }
+-                Spacer(modifier = Modifier.width(16.dp))
+-                Text("Gestão de Usuários", color = Branco, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+-            }
+-        }
+-    ) { padding ->
+-        LazyColumn(
+-            modifier = Modifier
+-                .fillMaxSize()
+-                .padding(padding)
+-                .padding(16.dp),
+-            verticalArrangement = Arrangement.spacedBy(12.dp)
+-        ) {
+-            items(usuarios) { usuario ->
+-                CardUsuario(
+-                    usuario = usuario,
+-                    onAprovarClick = {
+-                        usuarios = usuarios.map {
+-                            if (it.id == usuario.id) it.copy(status = "Aprovado") else it
+-                        }
+-                    }
+-                )
+-            }
+-        }
+-    }
+-}
+-
+-@Composable
+-private fun CardUsuario(usuario: Usuario, onAprovarClick: () -> Unit) {
+-    Column(
+-        modifier = Modifier
+-            .fillMaxWidth()
+-            .clip(RoundedCornerShape(12.dp))
+-            .background(SuperficieCard)
+-            .padding(16.dp)
+-    ) {
+-        Row(verticalAlignment = Alignment.CenterVertically) {
+-            Box(
+-                modifier = Modifier
+-                    .size(44.dp)
+-                    .clip(CircleShape)
+-                    .background(AmbarDourado),
+-                contentAlignment = Alignment.Center
+-            ) {
+-                Text(
+-                    usuario.nome.take(1),
+-                    color = Petroleo,
+-                    fontWeight = FontWeight.Bold,
+-                    fontSize = 16.sp
+-                )
+-            }
+-
+-            Spacer(modifier = Modifier.width(12.dp))
+-
+-            Column(modifier = Modifier.weight(1f)) {
+-                Text(usuario.nome, color = TextoPrincipal, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+-                Text(usuario.email, color = TextoSecundario, fontSize = 12.sp)
+-            }
+-
+-            BadgeStatus(usuario.status)
+-        }
+-
+-        Spacer(modifier = Modifier.height(12.dp))
+-
+-        Row(verticalAlignment = Alignment.CenterVertically) {
+-            Box(
+-                modifier = Modifier
+-                    .clip(RoundedCornerShape(6.dp))
+-                    .background(CinzaSuave)
+-                    .padding(horizontal = 10.dp, vertical = 4.dp)
+-            ) {
+-                Text(usuario.perfil, color = CinzaBadge, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+-            }
+-
+-            Spacer(modifier = Modifier.weight(1f))
+-
+-            if (usuario.status == "Pendente") {
+-                Box(
+-                    modifier = Modifier
+-                        .clip(RoundedCornerShape(8.dp))
+-                        .background(VerdeEsmeralda)
+-                        .clickable { onAprovarClick() }
+-                        .padding(horizontal = 14.dp, vertical = 8.dp)
+-                ) {
+-                    Text("Aprovar", color = Branco, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+-                }
+-            }
+-        }
+-    }
+-}
+-
+-@Composable
+-private fun BadgeStatus(status: String) {
+-    val cor = if (status == "Aprovado") VerdeSuave else FundoInsight
+-    val corTexto = if (status == "Aprovado") VerdeEsmeralda else AmbarAlerta
+-
+-    Box(
+-        modifier = Modifier
+-            .clip(RoundedCornerShape(6.dp))
+-            .background(cor)
+-            .padding(horizontal = 10.dp, vertical = 4.dp)
+-    ) {
+-        Text(status, color = corTexto, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+-    }
+-}
+\ No newline at end of file
+diff --git a/app/src/main/res/xml/file_paths.xml b/app/src/main/res/xml/file_paths.xml
+new file mode 100644
+index 0000000..7fd6001
+--- /dev/null
++++ b/app/src/main/res/xml/file_paths.xml
+@@ -0,0 +1,4 @@
++<?xml version="1.0" encoding="utf-8"?>
++<paths xmlns:android="http://schemas.android.com/apk/res/android">
++    <external-files-path name="comprovantes" path="images/" />
++</paths>
+\ No newline at end of file
+diff --git a/build.gradle.kts b/build.gradle.kts
+index 18318be..e1264c0 100644
+--- a/build.gradle.kts
++++ b/build.gradle.kts
+@@ -1,5 +1,6 @@
+-// Top-level build file where you can add configuration options common to all sub-projects/modules.
+ plugins {
+     alias(libs.plugins.android.application) apply false
++    alias(libs.plugins.kotlin.android) apply false
+     alias(libs.plugins.kotlin.compose) apply false
++    alias(libs.plugins.ksp) apply false
+ }
+\ No newline at end of file
+diff --git a/gradle.properties b/gradle.properties
+index 99fc155..6619dc5 100644
+--- a/gradle.properties
++++ b/gradle.properties
+@@ -14,6 +14,7 @@ org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+ # When enabled, the Configuration Cache allows Gradle to skip the configuration
+ # phase entirely if nothing that affects the build configuration (such as build scripts)
+ # has changed. Additionally, Gradle applies performance optimizations to task execution.
+-org.gradle.configuration-cache=true
++org.gradle.configuration-cache=false
+ # Kotlin code style for this project: "official" or "obsolete":
+-kotlin.code.style=official
+\ No newline at end of file
++kotlin.code.style=official
++android.useAndroidX=true
+\ No newline at end of file
+diff --git a/gradle/gradle-daemon-jvm.properties b/gradle/gradle-daemon-jvm.properties
+deleted file mode 100644
+index fa4ed51..0000000
+--- a/gradle/gradle-daemon-jvm.properties
++++ /dev/null
+@@ -1,12 +0,0 @@
+-#This file is generated by updateDaemonJvm
+-toolchainUrl.FREE_BSD.AARCH64=https\://api.foojay.io/disco/v3.0/ids/cf726b4a1c84b50457225f9bba6d7650/redirect
+-toolchainUrl.FREE_BSD.X86_64=https\://api.foojay.io/disco/v3.0/ids/fa1e318c287360478e3c83a9a3ef1007/redirect
+-toolchainUrl.LINUX.AARCH64=https\://api.foojay.io/disco/v3.0/ids/cf726b4a1c84b50457225f9bba6d7650/redirect
+-toolchainUrl.LINUX.X86_64=https\://api.foojay.io/disco/v3.0/ids/fa1e318c287360478e3c83a9a3ef1007/redirect
+-toolchainUrl.MAC_OS.AARCH64=https\://api.foojay.io/disco/v3.0/ids/c2dd35c9d0aaf0ba6ad0791320f99dfc/redirect
+-toolchainUrl.MAC_OS.X86_64=https\://api.foojay.io/disco/v3.0/ids/e5810bd7fd1f8a586644409d395a7e55/redirect
+-toolchainUrl.UNIX.AARCH64=https\://api.foojay.io/disco/v3.0/ids/cf726b4a1c84b50457225f9bba6d7650/redirect
+-toolchainUrl.UNIX.X86_64=https\://api.foojay.io/disco/v3.0/ids/fa1e318c287360478e3c83a9a3ef1007/redirect
+-toolchainUrl.WINDOWS.AARCH64=https\://api.foojay.io/disco/v3.0/ids/7b3c4877c0749019e6805bb61e421497/redirect
+-toolchainUrl.WINDOWS.X86_64=https\://api.foojay.io/disco/v3.0/ids/d76df094a9cbbabd3b08251f9e61444a/redirect
+-toolchainVersion=25
+diff --git a/gradle/libs.versions.toml b/gradle/libs.versions.toml
+index d90d9f3..62cbb28 100644
+--- a/gradle/libs.versions.toml
++++ b/gradle/libs.versions.toml
+@@ -1,13 +1,13 @@
+ [versions]
+-agp = "9.4.1"
++agp = "8.9.2"
+ coreKtx = "1.10.1"
+ junit = "4.13.2"
+ junitVersion = "1.1.5"
+ espressoCore = "3.5.1"
+ lifecycleRuntimeKtx = "2.6.1"
+ activityCompose = "1.8.0"
+-kotlin = "2.2.10"
+-composeBom = "2026.02.01"
++kotlin = "2.1.20"
++composeBom = "2025.04.01"
+ 
+ [libraries]
+ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+@@ -28,4 +28,6 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
+ [plugins]
+ android-application = { id = "com.android.application", version.ref = "agp" }
+ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
++ksp = { id = "com.google.devtools.ksp", version = "2.1.20-1.0.32" }
+ 
++kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+diff --git a/gradle/wrapper/gradle-wrapper.properties b/gradle/wrapper/gradle-wrapper.properties
+index 194e235..8e7870a 100644
+--- a/gradle/wrapper/gradle-wrapper.properties
++++ b/gradle/wrapper/gradle-wrapper.properties
+@@ -1,8 +1,7 @@
+ #Thu Sep 24 20:02:18 GMT-03:00 2026
+ distributionBase=GRADLE_USER_HOME
+ distributionPath=wrapper/dists
+-distributionSha256Sum=bbaeb2fef8710818cf0e261201dab964c572f92b942812df0c3620d62a529a01
+-distributionUrl=https\://services.gradle.org/distributions/gradle-9.6.0-bin.zip
++distributionUrl=https\://services.gradle.org/distributions/gradle-8.11.1-bin.zip
+ networkTimeout=10000
+ validateDistributionUrl=true
+ zipStoreBase=GRADLE_USER_HOME
+diff --git a/settings.gradle.kts b/settings.gradle.kts
+index 5ccca22..3da61ff 100644
+--- a/settings.gradle.kts
++++ b/settings.gradle.kts
+@@ -11,13 +11,16 @@ pluginManagement {
+         gradlePluginPortal()
+     }
+ }
+-plugins {
+-    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+-}
+ dependencyResolutionManagement {
+     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+     repositories {
+-        google()
++        google {
++            content {
++                includeGroupByRegex("androidx.*")
++                includeGroupByRegex("com\\.android.*")
++                includeGroupByRegex("com\\.google\\.android.*")
++            }
++        }
+         mavenCentral()
+     }
+ }

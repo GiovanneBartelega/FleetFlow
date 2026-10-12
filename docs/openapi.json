@@ -1,0 +1,1811 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "FleetFlow entrega 14 de outubro",
+    "version": "1.1.0",
+    "description": "API Node/MySQL integrada ao front Kotlin. Dinheiro em string; exclusão lógica. Comprovante enviado como bytes da imagem (PUT), sem multipart."
+  },
+  "servers": [
+    {
+      "url": "http://localhost:3000"
+    }
+  ],
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ],
+  "paths": {
+    "/api/categorias": {
+      "get": {
+        "summary": "Listar categorias",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar categorias",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "titulo": {
+                    "type": "string"
+                  },
+                  "tipo": {
+                    "enum": [
+                      "Entrada",
+                      "Saida"
+                    ]
+                  }
+                },
+                "required": [
+                  "titulo",
+                  "tipo"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/categorias/{id}": {
+      "get": {
+        "summary": "Consultar categorias",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Editar categorias",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "titulo": {
+                    "type": "string"
+                  },
+                  "tipo": {
+                    "enum": [
+                      "Entrada",
+                      "Saida"
+                    ]
+                  },
+                  "syncVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar categorias",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/formas-pagamento": {
+      "get": {
+        "summary": "Listar formas de pagamento",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar formas de pagamento",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "nome"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/formas-pagamento/{id}": {
+      "get": {
+        "summary": "Consultar formas de pagamento",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Editar formas de pagamento",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string"
+                  },
+                  "syncVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar formas de pagamento",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/usuarios": {
+      "get": {
+        "summary": "Listar usuários",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar usuários",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "perfilId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Ativo",
+                      "AguardandoAprovacao",
+                      "Bloqueado"
+                    ]
+                  },
+                  "categoriaCnh": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "validadeCnh": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  }
+                },
+                "required": [
+                  "nome",
+                  "email",
+                  "perfilId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/usuarios/{id}": {
+      "get": {
+        "summary": "Consultar usuários",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Editar usuários",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string"
+                  },
+                  "perfilId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "syncVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Ativo",
+                      "AguardandoAprovacao",
+                      "Bloqueado"
+                    ]
+                  },
+                  "categoriaCnh": {
+                    "type": "string",
+                    "nullable": true
+                  },
+                  "validadeCnh": {
+                    "type": "string",
+                    "format": "date",
+                    "nullable": true
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar usuários",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/dividas": {
+      "get": {
+        "summary": "Listar dívidas",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        }
+      },
+      "post": {
+        "summary": "Criar dívidas",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "categoriaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "formaPagamentoId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "quantidadeParcelas": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 480
+                  },
+                  "valorParcela": {
+                    "type": "string"
+                  },
+                  "dataVencimentoPrimeira": {
+                    "type": "string",
+                    "format": "date"
+                  }
+                },
+                "required": [
+                  "descricao",
+                  "categoriaId",
+                  "quantidadeParcelas",
+                  "valorParcela",
+                  "dataVencimentoPrimeira"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/dividas/{id}": {
+      "get": {
+        "summary": "Consultar dívidas",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Editar dívidas",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "categoriaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "formaPagamentoId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "quantidadeParcelas": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 480
+                  },
+                  "valorParcela": {
+                    "type": "string"
+                  },
+                  "dataVencimentoPrimeira": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "syncVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar dívidas",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/movimentacoes": {
+      "get": {
+        "summary": "Listar movimentações",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "busca",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "categoriaId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "formaPagamentoId",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vencimentoDe",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "vencimentoAte",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagamentoDe",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "pagamentoAte",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ]
+      },
+      "post": {
+        "summary": "Criar movimentações",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "valor": {
+                    "type": "string",
+                    "pattern": "^\\d{1,12}(\\.\\d{1,2})?$"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "categoriaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "formaPagamentoId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Pendente",
+                      "Pago"
+                    ]
+                  },
+                  "dataPagamento": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "dataVencimento": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "syncVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": [
+                  "valor",
+                  "descricao",
+                  "categoriaId",
+                  "formaPagamentoId"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/movimentacoes/{id}": {
+      "get": {
+        "summary": "Consultar movimentações",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "patch": {
+        "summary": "Editar movimentações",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "valor": {
+                    "type": "string",
+                    "pattern": "^\\d{1,12}(\\.\\d{1,2})?$"
+                  },
+                  "descricao": {
+                    "type": "string"
+                  },
+                  "categoriaId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "formaPagamentoId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "Pendente",
+                      "Pago"
+                    ]
+                  },
+                  "dataPagamento": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "dataVencimento": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "syncVersion": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "required": []
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Desativar movimentações",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/movimentacoes/saldo": {
+      "get": {
+        "summary": "Saldo atual e previsto",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "dataAte",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ]
+      }
+    },
+    "/api/movimentacoes/{id}/pagar": {
+      "post": {
+        "summary": "Pagar ou receber lançamento",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dataPagamento": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "formaPagamentoId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "syncVersion": {
+                    "type": "integer"
+                  }
+                },
+                "required": [
+                  "dataPagamento"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/movimentacoes/{id}/comprovante": {
+      "get": {
+        "summary": "Comprovante protegido (até 5 MiB)",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      },
+      "put": {
+        "summary": "Comprovante protegido (até 5 MiB)",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "image/jpeg": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/png": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            },
+            "image/webp": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "summary": "Comprovante protegido (até 5 MiB)",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ]
+      }
+    },
+    "/api/auth/google": {
+      "post": {
+        "summary": "google",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idToken": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "idToken"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/dev-login": {
+      "post": {
+        "summary": "dev-login",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "email"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/refresh": {
+      "post": {
+        "summary": "refresh",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "refreshToken"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/logout": {
+      "post": {
+        "summary": "logout",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "refreshToken": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "refreshToken"
+                ]
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "summary": "Usuário atual e permissões",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        }
+      }
+    },
+    "/api/perfis": {
+      "get": {
+        "summary": "Listar quatro perfis",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "summary": "Testar API e banco",
+        "responses": {
+          "200": {
+            "description": "Sucesso"
+          },
+          "201": {
+            "description": "Criado"
+          },
+          "204": {
+            "description": "Excluído"
+          },
+          "400": {
+            "description": "Validação"
+          },
+          "401": {
+            "description": "Token ausente ou expirado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          },
+          "409": {
+            "description": "Conflito"
+          }
+        },
+        "security": []
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT"
+      }
+    }
+  }
+}

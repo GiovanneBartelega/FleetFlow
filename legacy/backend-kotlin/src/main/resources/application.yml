@@ -1,0 +1,33 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: fleetflow-backend
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+
+google:
+  client-id: ${GOOGLE_CLIENT_ID:532566364339-ek243ne0jr7c7tef09jmncn4gc7b99vp.apps.googleusercontent.com}
+
+jwt:
+  secret: ${JWT_SECRET:v9y$B&E)H@MbQeThWmZq4t7w!z%C*F-JaNdRfUjXn2r5u8x/A?DGKaPdSgVkYp3s}
+  access-token-expiration: 900       # 15 minutes in seconds
+  refresh-token-expiration: 604800   # 7 days in seconds
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: always
+
+springdoc:
+  api-docs:
+    path: /v3/api-docs
+  swagger-ui:
+    path: /swagger-ui.html
+    operationsSorter: method

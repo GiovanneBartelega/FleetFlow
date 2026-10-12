@@ -1,6 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.ksp)
 }
 
 android {
@@ -13,27 +15,31 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "1.0"
+        val apiUrl = providers.gradleProperty("FLEETFLOW_API_URL").getOrElse("http://10.0.2.2:3000/")
+        buildConfigField("String", "API_BASE_URL", "\"$apiUrl\"")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     buildTypes {
         release {
-            optimization {
-                enable = false
-            }
+            isMinifyEnabled = false
         }
     }
     compileOptions {
+        isCoreLibraryDesugaringEnabled = true
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
+    kotlinOptions { jvmTarget = "11" }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)
@@ -57,6 +63,13 @@ dependencies {
     implementation("androidx.credentials:credentials:1.3.0")
     implementation("androidx.credentials:credentials-play-services-auth:1.3.0")
     implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+
+    // Ícones Material completos (barra de abas)
+    implementation("androidx.compose.material:material-icons-extended")
+    // Room — banco local no aparelho
+    implementation("androidx.room:room-runtime:2.7.1")
+    implementation("androidx.room:room-ktx:2.7.1")
+    ksp("androidx.room:room-compiler:2.7.1")
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))

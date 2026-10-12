@@ -12,7 +12,7 @@ class AuthInterceptor(private val tokenManager: TokenManager) : Interceptor {
         val path = request.url.encodedPath
 
         // Skip adding Authorization header for public authentication endpoints
-        if (path.contains("/api/auth/google") || path.contains("/api/auth/refresh") || path.contains("/api/auth/logout")) {
+        if (path.contains("/api/auth/google") || path.contains("/api/auth/dev-login")) {
             return chain.proceed(request)
         }
 
