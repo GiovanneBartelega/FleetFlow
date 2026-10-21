@@ -4,8 +4,8 @@ API REST em Node.js + Express para o app Android (Kotlin) do FleetFlow. Fala com
 criado por `fleetflow_mysql_financeiro.sql`.
 
 **Escopo atual:** login com Google (JWT), usuários e perfis, categorias, formas de pagamento,
-dívidas e movimentações, com permissão por perfil. Veículos, rotas, viagens, manutenção,
-abastecimentos e checklist ainda não têm rotas.
+dívidas, movimentações, veículos e ordens de serviço (manutenção), com permissão por perfil.
+Rotas, viagens, abastecimentos e checklist ainda não têm rotas.
 
 ```
 App Kotlin ──HTTPS/JSON──▶ API (Express) ──▶ MySQL
@@ -78,6 +78,8 @@ Todos exigem token, exceto `/health` e `/api/auth/google`.
 | Formas de pagamento | `GET/POST /api/formas-pagamento`, `GET/PATCH/DELETE /api/formas-pagamento/:id` | idem |
 | Dívidas | `GET/POST /api/dividas`, `GET/PATCH/DELETE /api/dividas/:id` | Admin e Financeiro |
 | Movimentações | `GET/POST /api/movimentacoes`, `GET/PATCH/DELETE /api/movimentacoes/:id`, `POST /api/movimentacoes/:id/pagar` | Admin e Financeiro |
+| Veículos | `GET/POST /api/veiculos`, `GET/PATCH/DELETE /api/veiculos/:id` | Admin e GestorFrota editam; Financeiro e Motorista leem |
+| Ordens de serviço | `GET/POST /api/ordens-servico`, `GET/PATCH/DELETE /api/ordens-servico/:id`, `POST /api/ordens-servico/:id/concluir` | Admin e GestorFrota editam; Financeiro lê; Motorista sem acesso |
 
 A matriz fica em `src/permissions.js`. **Ela foi derivada do modelo de dados e precisa ser
 confirmada pelo grupo**; se mudar, é só editar esse arquivo. A mesma matriz está no roteiro de
@@ -87,6 +89,9 @@ Listas de dívidas, movimentações e usuários são paginadas (`?page=1&pageSiz
 respondem `{ data, page, pageSize, total, totalPages }`. Movimentações aceitam os filtros
 `status`, `tipo`, `categoriaId`, `formaPagamentoId`, `dividaId`, `veiculoId`, `viagemId`,
 `vencimentoDe/Ate`, `pagamentoDe/Ate` e `busca`, e trazem `totais: { entradas, saidas }` do filtro.
+Veículos aceitam `status`, `busca` (placa, marca ou modelo) e `licenciamentoAte`/`seguroAte`
+(vencimento até a data). Ordens de serviço aceitam `veiculoId`, `tipo`, `concluida=true|false`,
+`manutencaoDe/Ate`, `movimentacaoId` e `busca` (descrição ou placa).
 Categorias, formas de pagamento e perfis voltam inteiros em `{ data: [...] }`.
 
 Exemplo:
@@ -129,7 +134,8 @@ Ele devolve o mesmo token do login real, para qualquer usuário `Ativo` do banco
 
 ## Pontos de atenção
 
-- **Sem FK para veículos e viagens:** `VeiculoId` e `ViagemId` são aceitos, mas não verificados, porque essas tabelas não estão no banco atual. Quando existirem, rode os `ALTER TABLE` comentados no fim do SQL e adicione a checagem nas rotas.
+- **Veículos e ordens de serviço:** a placa é gravada sem hífen e em maiúsculas (`ABC-1234` vira `ABC1234`). Toda ordem de serviço exige `movimentacaoId` (a despesa já lançada em Movimentações); a API não cria a movimentação. Veículo em viagem ou com ordem em aberto não pode ser excluído. As tabelas `veiculos` e `ordens_servico` precisam dos mesmos triggers `BEFORE UPDATE` das demais (`SyncVersion` e `AtualizadoEm`).
+- **`VeiculoId` em dívidas e movimentações** é verificado pela API (veículo existente e ativo) e pela FK do banco. `ViagemId` só é validado pela FK (erro vira `400 INVALID_REFERENCE`), pois ainda não há rotas de viagens.
 - **`formas_pagamento.Nome` é `UNIQUE` mesmo entre inativas:** depois de excluir uma forma, o nome não pode ser reutilizado. Se isso incomodar, o ajuste é no banco (mesma técnica da coluna gerada de `categorias`).
 - **Dívidas não geram parcelas sozinhas:** o app (ou uma rota futura) cria as movimentações com `dividaId` e `numeroParcela`.
 - **`GoogleSubjectId` é `NOT NULL`:** por isso os pré-cadastros usam valores provisórios (`seed-…`, `pre-…`), trocados no primeiro login.

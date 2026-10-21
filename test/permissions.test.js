@@ -10,6 +10,8 @@ const EXPECTED = {
   formas: { Administrador: 'E', Financeiro: 'E', GestorFrota: 'L' },
   movimentacoes: { Administrador: 'E', Financeiro: 'E' },
   dividas: { Administrador: 'E', Financeiro: 'E' },
+  veiculos: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'L' },
+  manutencao: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E' },
 };
 
 const ENDPOINTS = [
@@ -19,6 +21,8 @@ const ENDPOINTS = [
   { modulo: 'formas', base: '/api/formas-pagamento' },
   { modulo: 'movimentacoes', base: '/api/movimentacoes' },
   { modulo: 'dividas', base: '/api/dividas' },
+  { modulo: 'veiculos', base: '/api/veiculos' },
+  { modulo: 'manutencao', base: '/api/ordens-servico' },
 ];
 
 const ID = '11111111-1111-4111-8111-111111111111';
@@ -73,6 +77,18 @@ describe('matriz de permissões por perfil', () => {
       const res = await api.request('POST', `/api/movimentacoes/${ID}/pagar`, {
         token: tokens[perfil],
         body: { dataPagamento: '2026-10-10' },
+      });
+      assert.equal(res.status, 403, perfil);
+    }
+  });
+});
+
+describe('permissões das ações extras de manutenção', () => {
+  test('POST /api/ordens-servico/:id/concluir exige escrita (Financeiro e Motorista recebem 403)', async () => {
+    for (const perfil of ['Financeiro', 'OperadorMotorista']) {
+      const res = await api.request('POST', `/api/ordens-servico/${ID}/concluir`, {
+        token: tokens[perfil],
+        body: { dataConclusao: '2026-10-10' },
       });
       assert.equal(res.status, 403, perfil);
     }

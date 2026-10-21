@@ -27,6 +27,28 @@ export const money = z
   })
   .refine((value) => Number(value) > 0, 'O valor deve ser maior que zero');
 
+// Decimal positivo com até `intDigits` dígitos inteiros e `scale` casas
+// (DECIMAL(intDigits+scale, scale)); normalizado para string com `scale` casas.
+export const positiveDecimal = (intDigits, scale = 2) =>
+  z
+    .union([z.number(), z.string().trim()])
+    .transform((value, ctx) => {
+      const text = typeof value === 'number' ? String(value) : value;
+      if (!new RegExp(`^\\d{1,${intDigits}}(\\.\\d{1,${scale}})?$`).test(text)) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Valor inválido (use até ${intDigits} dígitos inteiros e ${scale} casas decimais)`,
+        });
+        return z.NEVER;
+      }
+      return Number(text).toFixed(scale);
+    })
+    .refine((value) => Number(value) > 0, 'O valor deve ser maior que zero');
+
+// Inteiro >= 0 que cabe em INT do MySQL (hodômetro, km).
+export const intNonNegative = z.number().int().min(0).max(2147483647);
+export const intPositive = z.number().int().min(1).max(2147483647);
+
 export const syncVersion = z.number().int().positive();
 
 export const pageQuery = z.object({

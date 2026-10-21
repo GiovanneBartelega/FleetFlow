@@ -37,7 +37,7 @@ const fields = {
   descricao: z.string().trim().min(1).max(200),
   categoriaId: uuid,
   formaPagamentoId: uuid,
-  // As tabelas viagens e veiculos ainda não existem neste banco: ids não verificados.
+  // viagemId é validado pela FK do banco (vira 400 INVALID_REFERENCE); veiculoId também é checado na rota.
   viagemId: uuid.nullable(),
   dividaId: uuid.nullable(),
   veiculoId: uuid.nullable(),
@@ -140,6 +140,7 @@ export function movimentacoesRouter({ pool }) {
       await assertActive(pool, 'formas_pagamento', ref.formaPagamentoId, 'formaPagamentoId', 'Forma de pagamento');
     }
     if (ref.dividaId) await assertActive(pool, 'dividas', ref.dividaId, 'dividaId', 'Dívida');
+    if (ref.veiculoId) await assertActive(pool, 'veiculos', ref.veiculoId, 'veiculoId', 'Veículo');
   };
 
   // GET /api/movimentacoes — lista paginada com filtros e totais do filtro.

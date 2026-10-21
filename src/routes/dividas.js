@@ -29,7 +29,6 @@ const createBody = z.object({
   valorParcela: money,
   dataVencimentoPrimeira: dateOnly,
   valorQuitacaoAntecipada: money.nullable().optional(),
-  // A tabela veiculos ainda não existe neste banco, então o id não é verificado.
   veiculoId: uuid.nullable().optional(),
 });
 
@@ -94,6 +93,7 @@ export function dividasRouter({ pool }) {
     asyncHandler(async (req, res) => {
       const body = createBody.parse(req.body);
       await assertActive(pool, 'categorias', body.categoriaId, 'categoriaId', 'Categoria');
+      if (body.veiculoId) await assertActive(pool, 'veiculos', body.veiculoId, 'veiculoId', 'Veículo');
 
       const id = randomUUID();
       await pool.query(
@@ -125,6 +125,9 @@ export function dividasRouter({ pool }) {
 
       if (fields.categoriaId) {
         await assertActive(pool, 'categorias', fields.categoriaId, 'categoriaId', 'Categoria');
+      }
+      if (fields.veiculoId) {
+        await assertActive(pool, 'veiculos', fields.veiculoId, 'veiculoId', 'Veículo');
       }
       const update = buildUpdate('dividas', id, fields, COLUMNS, expected);
       if (!update) throw new AppError(400, 'EMPTY_UPDATE', 'Nenhum campo para atualizar.');

@@ -90,3 +90,41 @@ export const mapMovimentacao = (row) => ({
   litrosCombustivel: row.LitrosCombustivel,
   criadoPorUsuarioId: row.CriadoPorUsuarioId,
 });
+
+export const mapVeiculo = (row) => ({
+  ...base(row),
+  placa: row.Placa,
+  marca: row.Marca,
+  modelo: row.Modelo,
+  anoFabricacao: row.AnoFabricacao,
+  capacidadeCargaToneladas: row.CapacidadeCargaToneladas,
+  status: row.Status,
+  hodometroAtual: row.HodometroAtual,
+  intervaloManutencaoKm: row.IntervaloManutencaoKm,
+  intervaloManutencaoMeses: row.IntervaloManutencaoMeses,
+  hodometroUltimaManutencao: row.HodometroUltimaManutencao,
+  vencimentoLicenciamento: row.VencimentoLicenciamento,
+  vencimentoSeguro: row.VencimentoSeguro,
+  consumoMedioReferenciaKmL: row.ConsumoMedioReferenciaKmL,
+});
+
+export const ORDEM_SERVICO_SELECT = `
+  SELECT o.Id, o.CriadoEm, o.AtualizadoEm, o.Ativo, o.SyncVersion,
+         o.VeiculoId, v.Placa AS VeiculoPlaca, v.Marca AS VeiculoMarca, v.Modelo AS VeiculoModelo,
+         o.DataManutencao, o.Descricao, o.Tipo, o.ValorTotal,
+         o.HodometroNaManutencao, o.DataConclusao, o.MovimentacaoId
+  FROM ordens_servico o
+  JOIN veiculos v ON v.Id = o.VeiculoId`;
+
+export const mapOrdemServico = (row) => ({
+  ...base(row),
+  veiculo: { id: row.VeiculoId, placa: row.VeiculoPlaca, marca: row.VeiculoMarca, modelo: row.VeiculoModelo },
+  dataManutencao: row.DataManutencao,
+  descricao: row.Descricao,
+  tipo: row.Tipo,
+  valorTotal: row.ValorTotal,
+  hodometroNaManutencao: row.HodometroNaManutencao,
+  dataConclusao: row.DataConclusao,
+  concluida: row.DataConclusao != null,
+  movimentacaoId: row.MovimentacaoId,
+});
