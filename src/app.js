@@ -12,6 +12,10 @@ import { dividasRouter } from './routes/dividas.js';
 import { formasPagamentoRouter } from './routes/formasPagamento.js';
 import { movimentacoesRouter } from './routes/movimentacoes.js';
 import { perfisRouter, usuariosRouter } from './routes/usuarios.js';
+import { rotasRouter } from './routes/rotas.js';
+import { viagensRouter } from './routes/viagens.js';
+import { veiculosRouter } from './routes/veiculos.js';
+import { ordensServicoRouter } from './routes/ordensServico.js';
 
 // `pool` e `verifyGoogleToken` são injetados para a API poder ser testada
 // sem MySQL e sem chamar o Google.
@@ -44,6 +48,10 @@ export function createApp({ pool, config, verifyGoogleToken, logger = console })
   app.use('/api/dividas', auth, dividasRouter(deps));
   app.use('/api/movimentacoes', auth, comprovantesRouter(deps));
   app.use('/api/movimentacoes', auth, movimentacoesRouter(deps));
+  app.use('/api/rotas', auth, rotasRouter(deps));
+  app.use('/api/viagens', auth, viagensRouter(deps));
+  app.use('/api/veiculos', auth, veiculosRouter(deps));
+  app.use('/api/ordens-servico', auth, ordensServicoRouter(deps));
   app.get('/openapi.json', (req,res)=>res.json(JSON.parse(readFileSync(new URL('../docs/openapi.json',import.meta.url)))));
 
   const spec=JSON.parse(readFileSync(new URL('../docs/openapi.json',import.meta.url)));
