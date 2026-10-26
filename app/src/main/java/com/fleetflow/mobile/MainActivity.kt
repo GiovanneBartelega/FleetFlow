@@ -36,6 +36,7 @@ class MainActivity : ComponentActivity() {
 
 
         com.fleetflow.mobile.data.repository.FinanceRepository.init(applicationContext)
+        com.fleetflow.mobile.data.repository.FrotaRepository.init(applicationContext)
         setContent {
             FleetFlowTheme {
                 val authRepository = remember { AuthRepository(applicationContext) }

@@ -15,6 +15,7 @@ import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalShipping
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Icon
@@ -70,6 +71,7 @@ enum class Screen(val label: String, val icon: ImageVector) {
     HOME("Início", Icons.Filled.Home),
     FINANCAS("Finanças", Icons.Filled.AccountBalanceWallet),
     FROTA("Frota", Icons.Filled.LocalShipping),
+    ROTAS("Rotas", Icons.Filled.Map),
     VIAGENS("Viagens", Icons.Filled.Route),
     COMBUSTIVEL("Combustível", Icons.Filled.LocalGasStation),
     RELATORIOS("Relatórios", Icons.Filled.Description),
@@ -78,9 +80,9 @@ enum class Screen(val label: String, val icon: ImageVector) {
 
 // A REGRA DE PERMISSÃO: quais abas cada perfil enxerga.
 fun tabsFor(profile: Profile): List<Screen> = when (profile) {
-    Profile.ADMIN      -> listOf(Screen.HOME, Screen.FINANCAS, Screen.FROTA, Screen.VIAGENS, Screen.PERFIL)
+    Profile.ADMIN      -> listOf(Screen.HOME, Screen.FINANCAS, Screen.FROTA, Screen.ROTAS, Screen.VIAGENS, Screen.PERFIL)
     Profile.FINANCEIRO -> listOf(Screen.HOME, Screen.FINANCAS, Screen.RELATORIOS, Screen.PERFIL)
-    Profile.GESTOR     -> listOf(Screen.HOME, Screen.FROTA, Screen.VIAGENS, Screen.RELATORIOS, Screen.PERFIL)
+    Profile.GESTOR     -> listOf(Screen.HOME, Screen.FROTA, Screen.ROTAS, Screen.VIAGENS, Screen.RELATORIOS, Screen.PERFIL)
     Profile.MOTORISTA  -> listOf(Screen.VIAGENS, Screen.COMBUSTIVEL, Screen.PERFIL)
 }
 
@@ -164,6 +166,15 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
                         onMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
                     )
                     Screen.PERFIL -> PerfilScreen(user = usuario, onSairClick = onLogout)
+                    Screen.FROTA -> FrotaScreen(
+                        podeEditar = perfil == Profile.ADMIN || perfil == Profile.GESTOR
+                    )
+                    Screen.ROTAS -> RotasScreen(
+                        somenteLeitura = perfil != Profile.ADMIN && perfil != Profile.GESTOR
+                    )
+                    Screen.VIAGENS -> ViagensScreen(
+                        somenteLeitura = perfil == Profile.FINANCEIRO
+                    )
                     else -> GenericPlaceholder(current.label)
                 }
             }
