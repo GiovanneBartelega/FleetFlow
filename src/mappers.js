@@ -108,6 +108,71 @@ export const mapVeiculo = (row) => ({
   consumoMedioReferenciaKmL: row.ConsumoMedioReferenciaKmL,
 });
 
+export const mapRota = (row) => ({
+  ...base(row),
+  nome: row.Nome,
+  cidadeOrigem: row.CidadeOrigem,
+  ufOrigem: row.UfOrigem,
+  cidadeDestino: row.CidadeDestino,
+  ufDestino: row.UfDestino,
+  distanciaEstimadaKm: row.DistanciaEstimadaKm,
+});
+
+export const VIAGEM_SELECT = `
+  SELECT vi.Id, vi.CriadoEm, vi.AtualizadoEm, vi.Ativo, vi.SyncVersion,
+         vi.VeiculoId, v.Placa AS VeiculoPlaca, v.Marca AS VeiculoMarca, v.Modelo AS VeiculoModelo,
+         vi.RotaId, r.Nome AS RotaNome, r.CidadeOrigem, r.UfOrigem, r.CidadeDestino, r.UfDestino,
+         vi.MotoristaId, u.Nome AS MotoristaNome,
+         vi.HodometroInicial, vi.HodometroFinal, vi.KmRodados,
+         vi.DataInicio, vi.DataFim, vi.Status, vi.Observacao
+  FROM viagens vi
+  JOIN veiculos v ON v.Id = vi.VeiculoId
+  JOIN rotas r ON r.Id = vi.RotaId
+  JOIN usuarios u ON u.Id = vi.MotoristaId`;
+
+export const mapViagem = (row) => ({
+  ...base(row),
+  veiculo: { id: row.VeiculoId, placa: row.VeiculoPlaca, marca: row.VeiculoMarca, modelo: row.VeiculoModelo },
+  rota: {
+    id: row.RotaId,
+    nome: row.RotaNome,
+    cidadeOrigem: row.CidadeOrigem,
+    ufOrigem: row.UfOrigem,
+    cidadeDestino: row.CidadeDestino,
+    ufDestino: row.UfDestino,
+  },
+  motorista: { id: row.MotoristaId, nome: row.MotoristaNome },
+  hodometroInicial: row.HodometroInicial,
+  hodometroFinal: row.HodometroFinal,
+  kmRodados: row.KmRodados,
+  dataInicio: toIso(row.DataInicio),
+  dataFim: toIso(row.DataFim),
+  status: row.Status,
+  observacao: row.Observacao,
+});
+
+export const mapItemChecklist = (row) => ({
+  ...base(row),
+  nome: row.Nome,
+  obrigatorio: toBool(row.Obrigatorio),
+});
+
+export const CHECKLIST_VIAGEM_SELECT = `
+  SELECT c.Id, c.CriadoEm, c.AtualizadoEm, c.Ativo, c.SyncVersion,
+         c.ViagemId, c.ItemChecklistId, i.Nome AS ItemNome, i.Obrigatorio AS ItemObrigatorio,
+         c.Conforme, c.Observacao, c.FotoUrl
+  FROM checklists_viagem c
+  JOIN itens_checklist i ON i.Id = c.ItemChecklistId`;
+
+export const mapChecklistViagem = (row) => ({
+  ...base(row),
+  viagemId: row.ViagemId,
+  item: { id: row.ItemChecklistId, nome: row.ItemNome, obrigatorio: toBool(row.ItemObrigatorio) },
+  conforme: toBool(row.Conforme),
+  observacao: row.Observacao,
+  fotoUrl: row.FotoUrl,
+});
+
 export const ORDEM_SERVICO_SELECT = `
   SELECT o.Id, o.CriadoEm, o.AtualizadoEm, o.Ativo, o.SyncVersion,
          o.VeiculoId, v.Placa AS VeiculoPlaca, v.Marca AS VeiculoMarca, v.Modelo AS VeiculoModelo,

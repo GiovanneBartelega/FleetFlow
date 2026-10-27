@@ -6,11 +6,15 @@ import { authenticate, errorHandler, notFound } from './middleware.js';
 import { authRouter } from './routes/auth.js';
 import { categoriasRouter } from './routes/categorias.js';
 import { dividasRouter } from './routes/dividas.js';
+import { checklistsViagemRouter } from './routes/checklistsViagem.js';
 import { formasPagamentoRouter } from './routes/formasPagamento.js';
+import { itensChecklistRouter } from './routes/itensChecklist.js';
 import { movimentacoesRouter } from './routes/movimentacoes.js';
 import { ordensServicoRouter } from './routes/ordensServico.js';
+import { rotasRouter } from './routes/rotas.js';
 import { perfisRouter, usuariosRouter } from './routes/usuarios.js';
 import { veiculosRouter } from './routes/veiculos.js';
+import { viagensRouter } from './routes/viagens.js';
 
 // `pool` e `verifyGoogleToken` são injetados para a API poder ser testada
 // sem MySQL e sem chamar o Google.
@@ -44,6 +48,10 @@ export function createApp({ pool, config, verifyGoogleToken, logger = console })
   app.use('/api/movimentacoes', auth, movimentacoesRouter(deps));
   app.use('/api/veiculos', auth, veiculosRouter(deps));
   app.use('/api/ordens-servico', auth, ordensServicoRouter(deps));
+  app.use('/api/rotas', auth, rotasRouter(deps));
+  app.use('/api/viagens', auth, viagensRouter(deps));
+  app.use('/api/itens-checklist', auth, itensChecklistRouter(deps));
+  app.use('/api/checklists-viagem', auth, checklistsViagemRouter(deps));
 
   app.use(notFound);
   app.use(errorHandler(logger));

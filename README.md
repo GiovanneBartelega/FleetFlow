@@ -80,6 +80,10 @@ Todos exigem token, exceto `/health` e `/api/auth/google`.
 | Movimentações | `GET/POST /api/movimentacoes`, `GET/PATCH/DELETE /api/movimentacoes/:id`, `POST /api/movimentacoes/:id/pagar` | Admin e Financeiro |
 | Veículos | `GET/POST /api/veiculos`, `GET/PATCH/DELETE /api/veiculos/:id` | Admin e GestorFrota editam; Financeiro e Motorista leem |
 | Ordens de serviço | `GET/POST /api/ordens-servico`, `GET/PATCH/DELETE /api/ordens-servico/:id`, `POST /api/ordens-servico/:id/concluir` | Admin e GestorFrota editam; Financeiro lê; Motorista sem acesso |
+| Rotas | `GET/POST /api/rotas`, `GET/PATCH/DELETE /api/rotas/:id` | Admin e GestorFrota editam; Financeiro e Motorista leem |
+| Viagens | `GET/POST /api/viagens`, `GET/PATCH/DELETE /api/viagens/:id`, `POST /api/viagens/:id/concluir`, `POST /api/viagens/:id/cancelar` | Admin, GestorFrota e Motorista editam; Financeiro lê |
+| Itens de checklist | `GET/POST /api/itens-checklist`, `GET/PATCH/DELETE /api/itens-checklist/:id` | Admin e GestorFrota editam; Motorista lê |
+| Checklist da viagem | `GET /api/checklists-viagem?viagemId=`, `POST /api/checklists-viagem`, `GET/PATCH/DELETE /api/checklists-viagem/:id` | Admin, GestorFrota e Motorista editam |
 
 A matriz fica em `src/permissions.js`. **Ela foi derivada do modelo de dados e precisa ser
 confirmada pelo grupo**; se mudar, é só editar esse arquivo. A mesma matriz está no roteiro de

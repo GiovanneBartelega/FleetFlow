@@ -7,9 +7,8 @@ import { AppError } from './errors.js';
 // modelo de dados e precisa ser confirmada pelo grupo: se a regra mudar,
 // basta ajustar esta tabela, nenhuma rota precisa ser alterada.
 //
-// Os módulos veiculos, rotas, viagens, manutencao, abastecimentos, checklist e
-// alertas ainda não têm rotas nesta API; aparecem aqui para o app montar a
-// navegação dinâmica a partir de GET /api/auth/me.
+// Os módulos abastecimentos e alertas ainda não têm rotas nesta API; aparecem
+// aqui para o app montar a navegação dinâmica a partir de GET /api/auth/me.
 export const PERMISSION_MATRIX = {
   usuarios: { Administrador: 'E' },
   categorias: { Administrador: 'E', Financeiro: 'E', GestorFrota: 'L' },
@@ -22,6 +21,8 @@ export const PERMISSION_MATRIX = {
   manutencao: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E' },
   abastecimentos: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'E' },
   checklist: { Administrador: 'E', GestorFrota: 'E', OperadorMotorista: 'E' },
+  // Catálogo de itens do checklist: o motorista só consulta.
+  itensChecklist: { Administrador: 'E', GestorFrota: 'E', OperadorMotorista: 'L' },
   alertas: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'L' },
 };
 
