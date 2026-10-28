@@ -9,7 +9,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -29,11 +31,15 @@ fun MoneyField(
     isError: Boolean = false,
     errorText: String? = null,
 ) {
+    val texto = formatMoney(value)
     OutlinedTextField(
-        value = formatMoney(value),
+        // O valor é digitado da direita para a esquerda, como na maquininha de cartão:
+        // cada dígito novo entra nos centavos. Por isso o cursor fica sempre no fim.
+        // Antes ele ficava onde a formatação o deixava e "35000" virava "5.000,03".
+        value = TextFieldValue(texto, selection = TextRange(texto.length)),
         onValueChange = { digitado ->
-            // Mantém só números, no máximo 12 dígitos.
-            onValueChange(digitado.filter { it.isDigit() }.take(12))
+            // Mantém só números, sem zeros à esquerda, no máximo 12 dígitos.
+            onValueChange(digitado.text.filter { it.isDigit() }.trimStart('0').take(12))
         },
         label = { Text(label) },
         leadingIcon = { Text("R$", style = MaterialTheme.typography.bodyMedium) },

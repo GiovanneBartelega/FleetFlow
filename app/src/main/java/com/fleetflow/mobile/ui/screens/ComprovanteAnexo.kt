@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
+import com.fleetflow.mobile.data.repository.ImagemComprovante
 import com.fleetflow.mobile.ui.theme.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -72,17 +73,9 @@ fun ComprovanteAnexo(
 
             LaunchedEffect(comprovanteUri) {
                 bitmap = withContext(Dispatchers.IO) {
-                    try {
-                        val opts=BitmapFactory.Options().apply {inJustDecodeBounds=true}
-                        context.contentResolver.openInputStream(comprovanteUri)?.use {BitmapFactory.decodeStream(it,null,opts)}
-                        var sample=1
-                        while(opts.outWidth/sample>800 || opts.outHeight/sample>800) sample*=2
-                        context.contentResolver.openInputStream(comprovanteUri)?.use {
-                            BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply {inSampleSize=sample})
-                        }
-                    } catch (e: Exception) {
-                        null
-                    }
+                    // Mesma leitura do envio: reduzida e girada pelo EXIF, para a prévia
+                    // mostrar a foto na mesma posição em que ela vai para a API.
+                    runCatching { ImagemComprovante.carregar(context, comprovanteUri, 800) }.getOrNull()
                 }
             }
 

@@ -4,21 +4,23 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AccountBalanceWallet
 import androidx.compose.material.icons.filled.Description
+import androidx.compose.material.icons.filled.DirectionsCar
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.LocalGasStation
 import androidx.compose.material.icons.filled.LocalShipping
-import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -67,24 +69,34 @@ fun nomeDoPerfil(p: Profile): String = when (p) {
     Profile.MOTORISTA -> "Motorista"
 }
 
+// Mesmo nome legível, a partir do texto que a API devolve ("GestorFrota" vira
+// "Gestor de Frota"). Texto desconhecido aparece como veio.
+fun nomeDoPerfil(nomeNaApi: String): String =
+    profileFromRole(nomeNaApi)?.let { nomeDoPerfil(it) } ?: nomeNaApi
+
 enum class Screen(val label: String, val icon: ImageVector) {
     HOME("Início", Icons.Filled.Home),
     FINANCAS("Finanças", Icons.Filled.AccountBalanceWallet),
     FROTA("Frota", Icons.Filled.LocalShipping),
-    ROTAS("Rotas", Icons.Filled.Map),
     VIAGENS("Viagens", Icons.Filled.Route),
-    COMBUSTIVEL("Combustível", Icons.Filled.LocalGasStation),
+    VEICULOS("Veículos", Icons.Filled.DirectionsCar),
     RELATORIOS("Relatórios", Icons.Filled.Description),
     PERFIL("Perfil", Icons.Filled.Person),
 }
 
-// A REGRA DE PERMISSÃO: quais abas cada perfil enxerga.
+// A REGRA DE PERMISSÃO: quais abas cada perfil enxerga (mapa de telas da especificação).
+// No máximo 5 abas: é o limite da barra de navegação do Material 3. Rotas não é aba;
+// abre por um botão no topo da Frota.
 fun tabsFor(profile: Profile): List<Screen> = when (profile) {
-    Profile.ADMIN      -> listOf(Screen.HOME, Screen.FINANCAS, Screen.FROTA, Screen.ROTAS, Screen.VIAGENS, Screen.PERFIL)
+    Profile.ADMIN      -> listOf(Screen.HOME, Screen.FINANCAS, Screen.FROTA, Screen.VIAGENS, Screen.PERFIL)
     Profile.FINANCEIRO -> listOf(Screen.HOME, Screen.FINANCAS, Screen.RELATORIOS, Screen.PERFIL)
-    Profile.GESTOR     -> listOf(Screen.HOME, Screen.FROTA, Screen.ROTAS, Screen.VIAGENS, Screen.RELATORIOS, Screen.PERFIL)
-    Profile.MOTORISTA  -> listOf(Screen.VIAGENS, Screen.COMBUSTIVEL, Screen.PERFIL)
+    Profile.GESTOR     -> listOf(Screen.HOME, Screen.FROTA, Screen.VIAGENS, Screen.RELATORIOS, Screen.PERFIL)
+    Profile.MOTORISTA  -> listOf(Screen.VIAGENS, Screen.VEICULOS, Screen.PERFIL)
 }
+
+// Quem cadastra e altera veículos, ordens de serviço e rotas. A API dá escrita em
+// veículos e manutenção só para Administrador e Gestor de Frota.
+fun podeEditarFrota(p: Profile) = p == Profile.ADMIN || p == Profile.GESTOR
 
 // Gestão de usuários: só Administrador, como diz a especificação.
 // A API também restringe gestão de usuários ao Administrador.
@@ -140,6 +152,18 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
                     "categorias" -> CategoriasScreen(onVoltarClick = {cadastro=null}, somenteLeitura = perfil == Profile.GESTOR)
                     "formas" -> FormasPagamentoScreen(onVoltarClick = {cadastro=null}, somenteLeitura = perfil == Profile.GESTOR)
                     "dividas" -> FinanciamentoScreen(onVoltarClick = {cadastro=null})
+                    "rotas" -> Column(Modifier.fillMaxSize()) {
+                        // A tela de Rotas foi feita para ser aba e não tem botão de voltar.
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { cadastro = null }) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar para a Frota")
+                            }
+                            Text("Frota", style = MaterialTheme.typography.titleMedium)
+                        }
+                        Box(Modifier.weight(1f)) {
+                            RotasScreen(somenteLeitura = !podeEditarFrota(perfil))
+                        }
+                    }
                 }
             } else if (mostrandoUsuarios) {
                 if (podeGerenciarUsuarios(perfil)) {
@@ -167,10 +191,14 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
                     )
                     Screen.PERFIL -> PerfilScreen(user = usuario, onSairClick = onLogout)
                     Screen.FROTA -> FrotaScreen(
-                        podeEditar = perfil == Profile.ADMIN || perfil == Profile.GESTOR
+                        podeEditar = podeEditarFrota(perfil),
+                        onRotasClick = { cadastro = "rotas" },
                     )
-                    Screen.ROTAS -> RotasScreen(
-                        somenteLeitura = perfil != Profile.ADMIN && perfil != Profile.GESTOR
+                    // Motorista: vê a frota só para consulta e sem as ordens de serviço,
+                    // porque a API não libera manutenção para esse perfil.
+                    Screen.VEICULOS -> FrotaScreen(
+                        podeEditar = false,
+                        mostrarOrdens = false,
                     )
                     Screen.VIAGENS -> ViagensScreen(
                         somenteLeitura = perfil == Profile.FINANCEIRO
