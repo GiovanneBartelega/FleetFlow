@@ -15,8 +15,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.ui.theme.*
 
+// Os textos têm valor padrão: quem chama sem eles continua vendo "Acesso negado".
+// A conta bloqueada usa a mesma tela com outros textos.
 @Composable
-fun AcessoNegadoScreen(onVoltarClick: () -> Unit) {
+fun AcessoNegadoScreen(
+    onVoltarClick: () -> Unit,
+    titulo: String = "Acesso negado",
+    mensagem: String = "Seu perfil não tem permissão para acessar essa área do FleetFlow.",
+    textoBotao: String = "Voltar",
+) {
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
             modifier = Modifier
@@ -31,7 +38,7 @@ fun AcessoNegadoScreen(onVoltarClick: () -> Unit) {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
-                "Acesso negado",
+                titulo,
                 color = TextoPrincipal,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
@@ -41,7 +48,7 @@ fun AcessoNegadoScreen(onVoltarClick: () -> Unit) {
             Spacer(modifier = Modifier.height(8.dp))
 
             Text(
-                "Seu perfil não tem permissão para acessar essa área do FleetFlow.",
+                mensagem,
                 color = TextoSecundario,
                 fontSize = 14.sp,
                 textAlign = TextAlign.Center
@@ -55,7 +62,7 @@ fun AcessoNegadoScreen(onVoltarClick: () -> Unit) {
                     .clickable { onVoltarClick() }
                     .padding(horizontal = 24.dp, vertical = 12.dp)
             ) {
-                Text("Voltar", color = Branco, fontWeight = FontWeight.SemiBold)
+                Text(textoBotao, color = Branco, fontWeight = FontWeight.SemiBold)
             }
         }
     }

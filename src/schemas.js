@@ -10,6 +10,27 @@ export const dateOnly = z
     return !Number.isNaN(date.getTime()) && date.toISOString().startsWith(value);
   }, 'Data inválida');
 
+export const dateTime = z
+  .string()
+  .datetime({ offset: true, message: 'Use data e hora no formato ISO-8601 com fuso horário' })
+  .transform((value) => new Date(value).toISOString().slice(0, 19).replace('T', ' '));
+
+export const intNonNegative = z.number().int().min(0).max(2147483647);
+export const intPositive = z.number().int().min(1).max(2147483647);
+
+export const positiveDecimal = (intDigits, scale = 2) =>
+  z
+    .union([z.number(), z.string().trim()])
+    .transform((value, ctx) => {
+      const text = typeof value === 'number' ? String(value) : value;
+      if (!new RegExp(`^\\d{1,${intDigits}}(\\.\\d{1,${scale}})?$`).test(text)) {
+        ctx.addIssue({ code: z.ZodIssueCode.custom, message: `Valor inválido (use até ${intDigits} dígitos inteiros e ${scale} casas decimais)` });
+        return z.NEVER;
+      }
+      return Number(text).toFixed(scale);
+    })
+    .refine((value) => Number(value) > 0, 'O valor deve ser maior que zero');
+
 // Dinheiro trafega como número ou string ("1234.50") e é normalizado para string
 // com 2 casas, para casar com DECIMAL e evitar erro de ponto flutuante.
 export const money = z

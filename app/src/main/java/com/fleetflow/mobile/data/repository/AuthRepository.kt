@@ -46,6 +46,7 @@ class AuthRepository(private val context: Context) {
                 authData.usuario.status,
                 authData.permissoes
             )
+            tokenManager.saveUsuario(authData.usuario)
             return Result.success(authData.usuario)
         }
         return Result.failure(parseError(response))
@@ -88,6 +89,7 @@ class AuthRepository(private val context: Context) {
                     me.usuario.status,
                     me.permissoes
                 )
+                tokenManager.saveUsuario(me.usuario)
                 Result.success(me.usuario)
             } else {
                 Result.failure(parseError(response))
@@ -163,4 +165,7 @@ class AuthRepository(private val context: Context) {
     }
 
     suspend fun getStoredPermissoes(): Map<String, String?> = tokenManager.getPermissoes()
+
+    // Usuário do último acesso, para abrir o app quando a API não responde.
+    suspend fun getUsuarioSalvo(): UserResponseDto? = tokenManager.getUsuarioSalvo()
 }

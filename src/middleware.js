@@ -71,6 +71,7 @@ const DUPLICATE_MESSAGES = {
   uq_usuarios_email: 'Já existe um usuário com esse e-mail.',
   uq_usuarios_google: 'Esta conta Google já está vinculada a outro usuário.',
   uq_perfis_nome: 'Já existe um perfil com esse nome.',
+  uq_veiculos_placa: 'Já existe um veículo cadastrado com essa placa.',
 };
 
 const DB_DOWN_CODES = new Set([

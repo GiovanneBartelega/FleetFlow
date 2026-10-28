@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import com.fleetflow.mobile.data.model.UserResponseDto
+import com.fleetflow.mobile.nomeDoPerfil
 import com.fleetflow.mobile.data.repository.FinanceRepository
 import com.fleetflow.mobile.data.MovimentacaoMensal
 import androidx.compose.ui.Alignment
@@ -25,7 +26,15 @@ import com.fleetflow.mobile.ui.theme.*
 @Composable
 fun HomeScreen(usuario:UserResponseDto,podeUsuarios:Boolean,onMovimentacoes:()->Unit,onPerfilClick: () -> Unit, onUsuariosClick: () -> Unit) {
     var error by remember {mutableStateOf<String?>(null)}
-    LaunchedEffect(Unit) {runCatching {FinanceRepository.refreshSaldo()}.onFailure {error=it.message}}
+    LaunchedEffect(Unit) {
+        runCatching { FinanceRepository.refreshSaldo() }.onFailure {
+            // Com a sessão aberta sem internet, o erro do OkHttp vinha em inglês e técnico
+            // ("Failed to connect to /10.0.2.2:3000"). Aqui vira um aviso que o usuário entende.
+            error = if (it is java.io.IOException)
+                "Sem conexão com o servidor. Os valores serão atualizados quando a conexão voltar."
+            else it.message
+        }
+    }
     val saldo=FinanceRepository.saldo
     fun brl(v:String?)="R$ "+(v ?: "0.00").replace('.',',')
     Scaffold(containerColor = BackgroundTela) { padding ->
@@ -60,9 +69,9 @@ fun HomeScreen(usuario:UserResponseDto,podeUsuarios:Boolean,onMovimentacoes:()->
 
             Column(modifier = Modifier.padding(20.dp)) {
 
-                Text("Olá, ${usuario.nome}", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text("Olá, ${usuario.nome.trim().substringBefore(" ")}", color = TextoPrincipal, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Text(
-                    "${usuario.perfil.nome} - FleetFlow",
+                    "${nomeDoPerfil(usuario.perfil.nome)} · FleetFlow",
                     color = TextoSecundario,
                     fontSize = 13.sp,
                     modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)

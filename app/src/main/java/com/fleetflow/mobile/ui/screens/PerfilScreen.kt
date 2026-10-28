@@ -15,6 +15,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.fleetflow.mobile.data.model.UserResponseDto
+import com.fleetflow.mobile.nomeDoPerfil
 import com.fleetflow.mobile.ui.theme.*
 
 @Composable
@@ -22,9 +23,12 @@ fun PerfilScreen(
     user: UserResponseDto? = null,
     onSairClick: () -> Unit
 ) {
-    val nomeExibicao = user?.nome ?: "Nome do Usuário"
-    val iniciais = nomeExibicao.split(" ").take(2).mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("")
-    val perfilTexto = user?.perfil?.nome ?: "Administrador"
+    val nomeExibicao = user?.nome?.trim().orEmpty()
+    val iniciais = nomeExibicao.split(" ").filter { it.isNotBlank() }.take(2)
+        .mapNotNull { it.firstOrNull()?.uppercase() }.joinToString("")
+    // "GestorFrota" vira "Gestor de Frota". Antes, sem usuário, aparecia "Administrador"
+    // de exemplo.
+    val perfilTexto = user?.perfil?.nome?.let { nomeDoPerfil(it) }.orEmpty()
 
     Scaffold(containerColor = BackgroundTela) { padding ->
         Column(
@@ -44,7 +48,7 @@ fun PerfilScreen(
                     .background(AmbarDourado),
                 contentAlignment = Alignment.Center
             ) {
-                Text(iniciais.ifEmpty { "JP" }, color = Petroleo, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+                Text(iniciais.ifEmpty { "FF" }, color = Petroleo, fontSize = 28.sp, fontWeight = FontWeight.Bold)
             }
 
             Spacer(modifier = Modifier.height(16.dp))

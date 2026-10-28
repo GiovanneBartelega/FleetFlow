@@ -96,6 +96,7 @@ export function dividasRouter({ pool }) {
     asyncHandler(async (req, res) => {
       const body = createBody.parse(req.body);
       await assertActive(pool, 'categorias', body.categoriaId, 'categoriaId', 'Categoria');
+      if (body.veiculoId) await assertActive(pool, 'veiculos', body.veiculoId, 'veiculoId', 'Veículo');
 
       const connection = await pool.getConnection();
       const id = randomUUID();
@@ -132,6 +133,7 @@ export function dividasRouter({ pool }) {
       if (fields.categoriaId) {
         await assertActive(pool, 'categorias', fields.categoriaId, 'categoriaId', 'Categoria');
       }
+      if (fields.veiculoId) await assertActive(pool, 'veiculos', fields.veiculoId, 'veiculoId', 'Veículo');
       const [[linked]]=await pool.query('SELECT COUNT(*) AS total FROM movimentacoes WHERE DividaId=? AND Ativo=1',[id]);
       if (Number(linked.total)>0) throw new AppError(409,'IN_USE','Não é possível editar o plano de uma dívida com parcelas geradas.');
       const update = buildUpdate('dividas', id, fields, COLUMNS, expected);

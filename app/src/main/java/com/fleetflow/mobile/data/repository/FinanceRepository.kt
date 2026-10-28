@@ -57,13 +57,8 @@ object FinanceRepository {
     suspend fun upload(id:String,uri:Uri) {
         val ctx=context?:throw Exception("Aplicativo não iniciado")
         val bytes=withContext(Dispatchers.IO) {
-            // Ler dimensões antes de decodificar: evita alocar uma foto inteira de alta resolução.
-            val opts=BitmapFactory.Options().apply {inJustDecodeBounds=true}
-            ctx.contentResolver.openInputStream(uri)?.use {BitmapFactory.decodeStream(it,null,opts)}
-            if(opts.outWidth<=0)throw Exception("Imagem inválida")
-            var sample=1
-            while(opts.outWidth/sample>1600 || opts.outHeight/sample>1600) sample*=2
-            val bitmap=ctx.contentResolver.openInputStream(uri)?.use {BitmapFactory.decodeStream(it,null,BitmapFactory.Options().apply {inSampleSize=sample})}
+            // Reduz para no máximo 1600 px e já gira conforme o EXIF; depois comprime em JPEG 80%.
+            val bitmap=ImagemComprovante.carregar(ctx,uri,1600)
                 ?:throw Exception("Não foi possível abrir a imagem")
             ByteArrayOutputStream().use {stream->bitmap.compress(Bitmap.CompressFormat.JPEG,80,stream);bitmap.recycle();stream.toByteArray()}
         }
