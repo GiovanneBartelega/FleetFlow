@@ -197,4 +197,4 @@ private fun LegendaCor(cor: androidx.compose.ui.graphics.Color, texto: String) {
         Spacer(modifier = Modifier.width(6.dp))
         Text(texto, color = TextoSecundario, fontSize = 12.sp)
     }
-}
+}
