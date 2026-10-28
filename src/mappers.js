@@ -1,4 +1,4 @@
-import { toBool, toIso } from './sql.js';
+﻿import { toBool, toIso } from './sql.js';
 
 const base = (row) => ({
   id: row.Id,
@@ -160,4 +160,31 @@ export const mapOrdemServico = (row) => ({
   dataConclusao: row.DataConclusao,
   concluida: row.DataConclusao != null,
   movimentacaoId: row.MovimentacaoId,
+});
+export const mapItemChecklist = (row) => ({
+  ...base(row),
+  nome: row.Nome,
+  obrigatorio: toBool(row.Obrigatorio),
+});
+
+export const CHECKLIST_VIAGEM_SELECT = `
+  SELECT
+    c.Id, c.CriadoEm, c.AtualizadoEm, c.Ativo, c.SyncVersion,
+    c.ViagemId, c.ItemChecklistId,
+    i.Nome AS ItemNome, i.Obrigatorio AS ItemObrigatorio,
+    c.Conforme, c.Observacao, c.FotoUrl
+  FROM checklists_viagem c
+  JOIN itens_checklist i ON i.Id = c.ItemChecklistId`;
+
+export const mapChecklistViagem = (row) => ({
+  ...base(row),
+  viagemId: row.ViagemId,
+  itemChecklist: {
+    id: row.ItemChecklistId,
+    nome: row.ItemNome,
+    obrigatorio: toBool(row.ItemObrigatorio),
+  },
+  conforme: toBool(row.Conforme),
+  observacao: row.Observacao,
+  fotoUrl: row.FotoUrl,
 });

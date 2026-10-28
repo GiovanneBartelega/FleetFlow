@@ -9,3 +9,6 @@ node_modules/
 **/obj/
 *.log
 .DS_Store
+
+# Backups locais do banco de dados
+/backups/
