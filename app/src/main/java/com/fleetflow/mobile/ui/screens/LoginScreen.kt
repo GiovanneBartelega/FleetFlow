@@ -39,6 +39,15 @@ private val PERFIS_DE_TESTE = listOf(
     PerfilDeTeste("Operador Motorista", "motorista.teste@fleetflow.com"),
 )
 
+// Troca o erro técnico ("Failed to connect to /10.0.2.2:3000") por uma mensagem que
+// diz o que fazer (US15). Erros da API já chegam em português.
+private fun mensagemDeErroLogin(erro: Throwable?): String = when (erro) {
+    is java.io.IOException ->
+        "Não foi possível conectar ao servidor. Confira a internet ou se a API está rodando e tente de novo."
+    null -> "Falha no login."
+    else -> erro.message ?: "Falha no login."
+}
+
 @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit = {},
@@ -65,7 +74,7 @@ fun LoginScreen(
                 "ACCOUNT_BLOCKED", "ACCOUNT_DISABLED" -> { onAccountBlocked(); return }
             }
         }
-        errorMessage = erro?.message ?: "Falha no login."
+        errorMessage = mensagemDeErroLogin(erro)
     }
 
     fun performRealGoogleLogin() {

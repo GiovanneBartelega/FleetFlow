@@ -6,6 +6,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import com.fleetflow.mobile.data.model.UserResponseDto
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import kotlinx.coroutines.flow.Flow
@@ -25,7 +26,20 @@ class TokenManager(private val context: Context) {
         val USER_PERFIL_KEY = stringPreferencesKey("user_perfil")
         val USER_STATUS_KEY = stringPreferencesKey("user_status")
         val PERMISSOES_KEY = stringPreferencesKey("permissoes")
+        // Usuário completo do último acesso, criptografado como os tokens. É o que
+        // permite abrir o app sem internet.
+        val USUARIO_JSON_KEY = stringPreferencesKey("usuario_json")
         private val gson = Gson()
+    }
+
+    suspend fun saveUsuario(usuario: UserResponseDto) {
+        context.dataStore.edit { it[USUARIO_JSON_KEY] = TokenCipher.encrypt(gson.toJson(usuario)) }
+    }
+
+    // null se nunca entrou, se saiu da conta ou se a chave do Keystore mudou.
+    suspend fun getUsuarioSalvo(): UserResponseDto? {
+        val json = TokenCipher.decrypt(context.dataStore.data.map { it[USUARIO_JSON_KEY] }.first()) ?: return null
+        return runCatching { gson.fromJson(json, UserResponseDto::class.java) }.getOrNull()
     }
 
     val accessToken: Flow<String?> = context.dataStore.data.map { preferences ->
@@ -84,6 +98,7 @@ class TokenManager(private val context: Context) {
             preferences.remove(USER_PERFIL_KEY)
             preferences.remove(USER_STATUS_KEY)
             preferences.remove(PERMISSOES_KEY)
+            preferences.remove(USUARIO_JSON_KEY)
         }
     }
 }
