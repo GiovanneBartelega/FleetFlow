@@ -141,6 +141,8 @@ export function movimentacoesRouter({ pool }) {
       await assertActive(pool, 'formas_pagamento', ref.formaPagamentoId, 'formaPagamentoId', 'Forma de pagamento');
     }
     if (ref.dividaId) await assertActive(pool, 'dividas', ref.dividaId, 'dividaId', 'Dívida');
+    if (ref.veiculoId) await assertActive(pool, 'veiculos', ref.veiculoId, 'veiculoId', 'Veículo');
+    if (ref.viagemId) await assertActive(pool, 'viagens', ref.viagemId, 'viagemId', 'Viagem');
   };
 
   // GET /api/movimentacoes — lista paginada com filtros e totais do filtro.
