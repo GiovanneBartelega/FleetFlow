@@ -16,6 +16,8 @@ import { rotasRouter } from './routes/rotas.js';
 import { viagensRouter } from './routes/viagens.js';
 import { veiculosRouter } from './routes/veiculos.js';
 import { ordensServicoRouter } from './routes/ordensServico.js';
+import { itensChecklistRouter } from './routes/itensChecklist.js';
+import { checklistsViagemRouter } from './routes/checklistsViagem.js';
 
 // `pool` e `verifyGoogleToken` são injetados para a API poder ser testada
 // sem MySQL e sem chamar o Google.
@@ -52,6 +54,8 @@ export function createApp({ pool, config, verifyGoogleToken, logger = console })
   app.use('/api/viagens', auth, viagensRouter(deps));
   app.use('/api/veiculos', auth, veiculosRouter(deps));
   app.use('/api/ordens-servico', auth, ordensServicoRouter(deps));
+  app.use('/api/itens-checklist', auth, itensChecklistRouter(deps));
+  app.use('/api/checklists-viagem', auth, checklistsViagemRouter(deps));
   app.get('/openapi.json', (req,res)=>res.json(JSON.parse(readFileSync(new URL('../docs/openapi.json',import.meta.url)))));
 
   const spec=JSON.parse(readFileSync(new URL('../docs/openapi.json',import.meta.url)));

@@ -104,6 +104,20 @@ export function viagensRouter({ pool }) {
       if (!trip) throw new AppError(404, 'NOT_FOUND', 'Viagem não encontrada.');
       if (!canManageAny(req.user) && trip.MotoristaId !== req.user.id) throw new AppError(403, 'FORBIDDEN', 'Você só pode fechar as próprias viagens.');
       if (trip.Status !== 'Aberta') throw new AppError(409, 'TRIP_ALREADY_CLOSED', 'Esta viagem já foi encerrada.');
+      const [[checklist]] = await connection.query(
+        `SELECT COUNT(*) AS total
+           FROM itens_checklist i
+          WHERE i.Ativo = 1 AND i.Obrigatorio = 1
+            AND NOT EXISTS (
+              SELECT 1 FROM checklists_viagem c
+               WHERE c.ViagemId = ? AND c.ItemChecklistId = i.Id
+                 AND c.Ativo = 1 AND c.Conforme = 1
+            )`,
+        [id],
+      );
+      if (Number(checklist.total) > 0) {
+        throw new AppError(409, 'CHECKLIST_INCOMPLETE', 'Preencha todos os itens obrigatórios do checklist antes de fechar a viagem.');
+      }
       const [vehicles] = await connection.query('SELECT * FROM veiculos WHERE Id = ? AND Ativo = 1 FOR UPDATE', [trip.VeiculoId]);
       const vehicle = vehicles[0];
       if (!vehicle) throw new AppError(409, 'VEHICLE_UNAVAILABLE', 'O veículo desta viagem não está mais ativo.');
