@@ -12,6 +12,7 @@ const EXPECTED = {
   dividas: { Administrador: 'E', Financeiro: 'E' },
   veiculos: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'L' },
   manutencao: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E' },
+  abastecimentos: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'E' },
 };
 
 const ENDPOINTS = [
@@ -23,6 +24,7 @@ const ENDPOINTS = [
   { modulo: 'dividas', base: '/api/dividas' },
   { modulo: 'veiculos', base: '/api/veiculos' },
   { modulo: 'manutencao', base: '/api/ordens-servico' },
+  { modulo: 'abastecimentos', base: '/api/abastecimentos' },
 ];
 
 const ID = '11111111-1111-4111-8111-111111111111';

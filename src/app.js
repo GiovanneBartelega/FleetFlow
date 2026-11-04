@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import { asyncHandler } from './errors.js';
 import { authenticate, errorHandler, notFound } from './middleware.js';
+import { abastecimentosRouter } from './routes/abastecimentos.js';
 import { authRouter } from './routes/auth.js';
 import { categoriasRouter } from './routes/categorias.js';
 import { dividasRouter } from './routes/dividas.js';
@@ -48,6 +49,7 @@ export function createApp({ pool, config, verifyGoogleToken, logger = console })
   app.use('/api/movimentacoes', auth, movimentacoesRouter(deps));
   app.use('/api/veiculos', auth, veiculosRouter(deps));
   app.use('/api/ordens-servico', auth, ordensServicoRouter(deps));
+  app.use('/api/abastecimentos', auth, abastecimentosRouter(deps));
   app.use('/api/rotas', auth, rotasRouter(deps));
   app.use('/api/viagens', auth, viagensRouter(deps));
   app.use('/api/itens-checklist', auth, itensChecklistRouter(deps));

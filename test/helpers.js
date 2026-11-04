@@ -31,9 +31,19 @@ export function makeUser({ id, perfil, status = 'Ativo', ativo = 1, subject, ema
 // e devolve resultados vazios para o resto. `handlers` permite sobrescrever.
 export function makeFakePool({ users = [], handlers = [] } = {}) {
   const calls = [];
-  return {
+  const pool = {
     users,
     calls,
+    // Conexão de transação falsa: usa as mesmas respostas e registra BEGIN/COMMIT/ROLLBACK.
+    async getConnection() {
+      return {
+        query: (sql, params) => pool.query(sql, params),
+        beginTransaction: async () => { calls.push({ sql: 'BEGIN', params: [] }); },
+        commit: async () => { calls.push({ sql: 'COMMIT', params: [] }); },
+        rollback: async () => { calls.push({ sql: 'ROLLBACK', params: [] }); },
+        release() {},
+      };
+    },
     async query(sql, params = []) {
       const text = sql.replace(/\s+/g, ' ').trim();
       calls.push({ sql: text, params });
@@ -54,6 +64,7 @@ export function makeFakePool({ users = [], handlers = [] } = {}) {
       return [[]];
     },
   };
+  return pool;
 }
 
 export async function startServer({ pool, verifyGoogleToken, appConfig = config } = {}) {

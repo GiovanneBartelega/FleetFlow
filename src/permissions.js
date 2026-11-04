@@ -7,8 +7,8 @@ import { AppError } from './errors.js';
 // modelo de dados e precisa ser confirmada pelo grupo: se a regra mudar,
 // basta ajustar esta tabela, nenhuma rota precisa ser alterada.
 //
-// Os módulos abastecimentos e alertas ainda não têm rotas nesta API; aparecem
-// aqui para o app montar a navegação dinâmica a partir de GET /api/auth/me.
+// O módulo alertas ainda não tem rotas nesta API; aparece aqui para o app
+// montar a navegação dinâmica a partir de GET /api/auth/me.
 export const PERMISSION_MATRIX = {
   usuarios: { Administrador: 'E' },
   categorias: { Administrador: 'E', Financeiro: 'E', GestorFrota: 'L' },

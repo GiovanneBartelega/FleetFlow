@@ -193,3 +193,22 @@ export const mapOrdemServico = (row) => ({
   concluida: row.DataConclusao != null,
   movimentacaoId: row.MovimentacaoId,
 });
+
+export const ABASTECIMENTO_SELECT = `
+  SELECT a.Id, a.CriadoEm, a.AtualizadoEm, a.Ativo, a.SyncVersion,
+         a.VeiculoId, v.Placa AS VeiculoPlaca, v.Marca AS VeiculoMarca, v.Modelo AS VeiculoModelo,
+         a.ViagemId, a.Litros, a.ValorTotal, a.PrecoLitro, a.Posto, a.Hodometro, a.MovimentacaoId
+  FROM abastecimentos a
+  JOIN veiculos v ON v.Id = a.VeiculoId`;
+
+export const mapAbastecimento = (row) => ({
+  ...base(row),
+  veiculo: { id: row.VeiculoId, placa: row.VeiculoPlaca, marca: row.VeiculoMarca, modelo: row.VeiculoModelo },
+  viagemId: row.ViagemId,
+  litros: row.Litros,
+  valorTotal: row.ValorTotal,
+  precoLitro: row.PrecoLitro,
+  posto: row.Posto,
+  hodometro: row.Hodometro,
+  movimentacaoId: row.MovimentacaoId,
+});

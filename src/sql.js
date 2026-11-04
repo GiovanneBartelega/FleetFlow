@@ -81,3 +81,19 @@ export function moneyTimes(quantity, amount) {
   const digits = total.toString().padStart(3, '0');
   return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
 }
+
+// Roda `fn(connection)` dentro de uma transação: confirma se terminar, desfaz se lançar erro.
+export async function withTransaction(pool, fn) {
+  const connection = await pool.getConnection();
+  try {
+    await connection.beginTransaction();
+    const result = await fn(connection);
+    await connection.commit();
+    return result;
+  } catch (error) {
+    await connection.rollback();
+    throw error;
+  } finally {
+    connection.release();
+  }
+}

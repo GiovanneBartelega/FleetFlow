@@ -4,8 +4,8 @@ API REST em Node.js + Express para o app Android (Kotlin) do FleetFlow. Fala com
 criado por `fleetflow_mysql_financeiro.sql`.
 
 **Escopo atual:** login com Google (JWT), usuários e perfis, categorias, formas de pagamento,
-dívidas, movimentações, veículos e ordens de serviço (manutenção), com permissão por perfil.
-Rotas, viagens, abastecimentos e checklist ainda não têm rotas.
+dívidas, movimentações, veículos, ordens de serviço (manutenção), rotas, viagens, checklist e
+abastecimentos, com permissão por perfil.
 
 ```
 App Kotlin ──HTTPS/JSON──▶ API (Express) ──▶ MySQL
@@ -82,6 +82,7 @@ Todos exigem token, exceto `/health` e `/api/auth/google`.
 | Ordens de serviço | `GET/POST /api/ordens-servico`, `GET/PATCH/DELETE /api/ordens-servico/:id`, `POST /api/ordens-servico/:id/concluir` | Admin e GestorFrota editam; Financeiro lê; Motorista sem acesso |
 | Rotas | `GET/POST /api/rotas`, `GET/PATCH/DELETE /api/rotas/:id` | Admin e GestorFrota editam; Financeiro e Motorista leem |
 | Viagens | `GET/POST /api/viagens`, `GET/PATCH/DELETE /api/viagens/:id`, `POST /api/viagens/:id/concluir`, `POST /api/viagens/:id/cancelar` | Admin, GestorFrota e Motorista editam; Financeiro lê |
+| Abastecimentos | `GET/POST /api/abastecimentos`, `GET/PATCH/DELETE /api/abastecimentos/:id` | Admin, GestorFrota e Motorista editam; Financeiro lê |
 | Itens de checklist | `GET/POST /api/itens-checklist`, `GET/PATCH/DELETE /api/itens-checklist/:id` | Admin e GestorFrota editam; Motorista lê |
 | Checklist da viagem | `GET /api/checklists-viagem?viagemId=`, `POST /api/checklists-viagem`, `GET/PATCH/DELETE /api/checklists-viagem/:id` | Admin, GestorFrota e Motorista editam |
 
@@ -96,7 +97,29 @@ respondem `{ data, page, pageSize, total, totalPages }`. Movimentações aceitam
 Veículos aceitam `status`, `busca` (placa, marca ou modelo) e `licenciamentoAte`/`seguroAte`
 (vencimento até a data). Ordens de serviço aceitam `veiculoId`, `tipo`, `concluida=true|false`,
 `manutencaoDe/Ate`, `movimentacaoId` e `busca` (descrição ou placa).
+Abastecimentos aceitam `veiculoId`, `viagemId`, `movimentacaoId`, `abastecidoDe/Ate` (data do registro) e
+`busca` (posto ou placa), e trazem `totais: { litros, valorTotal }` do filtro.
 Categorias, formas de pagamento e perfis voltam inteiros em `{ data: [...] }`.
+
+### Abastecimentos
+
+`POST /api/abastecimentos`:
+
+```json
+{ "veiculoId": "<uuid>", "viagemId": "<uuid ou omitido>", "litros": 120.5, "valorTotal": "723.00",
+  "hodometro": 120500, "posto": "Posto Central", "formaPagamentoId": "<uuid>" }
+```
+
+- **Despesa automática:** sem `movimentacaoId`, a API lança em Movimentações uma saída já **paga** (hoje), categoria de
+  sistema **Combustível**, com os litros em `litrosCombustivel`, e liga ao abastecimento, tudo na mesma transação. Nesse
+  caso `formaPagamentoId` é obrigatório. Isso permite ao Motorista registrar o abastecimento sem acesso ao módulo
+  Movimentações. Se já existe uma despesa lançada, mande o `movimentacaoId` dela (uma despesa só serve a um abastecimento; repetir dá `409 DUPLICATE`).
+- **Preço do litro:** `precoLitro` é opcional e, se omitido, vira `valorTotal ÷ litros` (3 casas). Se informado, precisa bater
+  com litros × total com tolerância de R$ 0,10, senão `400` no campo `precoLitro`.
+- **Hodômetro:** o `HodometroAtual` do veículo avança para o valor informado, nunca recua.
+- **Viagem:** `viagemId` é opcional, mas a viagem precisa ser do mesmo veículo.
+- **Edição:** `PATCH` aceita os mesmos campos (menos `formaPagamentoId`). Mudar `litros` ou `valorTotal` recalcula o preço do litro e
+  corrige `Valor`/`LitrosCombustivel` da despesa ligada. `DELETE` é lógico e **não** mexe na despesa em Movimentações.
 
 Exemplo:
 
@@ -141,6 +164,7 @@ Ele devolve o mesmo token do login real, para qualquer usuário `Ativo` do banco
 - **Veículos e ordens de serviço:** a placa é gravada sem hífen e em maiúsculas (`ABC-1234` vira `ABC1234`). Toda ordem de serviço exige `movimentacaoId` (a despesa já lançada em Movimentações); a API não cria a movimentação. Veículo em viagem ou com ordem em aberto não pode ser excluído. As tabelas `veiculos` e `ordens_servico` precisam dos mesmos triggers `BEFORE UPDATE` das demais (`SyncVersion` e `AtualizadoEm`).
 - **`VeiculoId` em dívidas e movimentações** é verificado pela API (veículo existente e ativo) e pela FK do banco. `ViagemId` só é validado pela FK (erro vira `400 INVALID_REFERENCE`), pois ainda não há rotas de viagens.
 - **`formas_pagamento.Nome` é `UNIQUE` mesmo entre inativas:** depois de excluir uma forma, o nome não pode ser reutilizado. Se isso incomodar, o ajuste é no banco (mesma técnica da coluna gerada de `categorias`).
+- **Abastecimentos:** a tabela `abastecimentos` e o trigger `BEFORE UPDATE` dela precisam existir no banco. No script do banco, `abastecimentos` está criada **antes** de `viagens`, mas tem FK para ela; o MySQL recusa. Mova o `CREATE TABLE viagens` para antes de `abastecimentos`. Não existe vínculo de motorista no abastecimento, então todo perfil com acesso vê todos os registros.
 - **Dívidas não geram parcelas sozinhas:** o app (ou uma rota futura) cria as movimentações com `dividaId` e `numeroParcela`.
 - **`GoogleSubjectId` é `NOT NULL`:** por isso os pré-cadastros usam valores provisórios (`seed-…`, `pre-…`), trocados no primeiro login.
 - Os testes usam um banco simulado. As consultas foram checadas contra a gramática do MySQL, mas **ainda não foram executadas em um MySQL real**: rode `npm start` contra o banco do grupo e passe pelos casos do roteiro.
