@@ -29,6 +29,8 @@ import com.fleetflow.mobile.data.repository.ApiException
 import com.fleetflow.mobile.data.repository.AuthRepository
 import com.fleetflow.mobile.data.repository.FinanceRepository
 import com.fleetflow.mobile.data.repository.FrotaRepository
+import com.fleetflow.mobile.data.repository.ViagemRepository
+import com.fleetflow.mobile.data.sync.SyncScheduler
 import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
 import com.fleetflow.mobile.ui.screens.AguardandoScreen
 import com.fleetflow.mobile.ui.screens.LoginScreen
@@ -64,6 +66,10 @@ class MainActivity : ComponentActivity() {
 
         FinanceRepository.init(applicationContext)
         FrotaRepository.init(applicationContext)
+        ViagemRepository.init(applicationContext)
+        // Fila de sincronização: tenta agora e, depois, a cada 15 minutos quando houver rede.
+        SyncScheduler.agendarPeriodico(applicationContext)
+        SyncScheduler.enviarAgora(applicationContext)
         setContent {
             FleetFlowTheme {
                 val authRepository = remember { AuthRepository(applicationContext) }
@@ -83,6 +89,7 @@ class MainActivity : ComponentActivity() {
                     scope.launch {
                         authRepository.logout()
                         FrotaRepository.limpar()
+                        ViagemRepository.limpar()
                     }
                     MovimentacaoRepo.clear()
                     FrotaRepository.clear()

@@ -99,6 +99,18 @@ object FrotaRepository {
     }
     suspend fun excluirOrdem(item: OrdemServicoDto) { checkedEmpty(api.removerOrdem(item.id)); carregar() }
 
+    // Abrir ou fechar viagem no aparelho muda o veículo na cópia local na hora, sem
+    // esperar a API: assim ele sai (ou volta) da lista de disponíveis mesmo sem internet.
+    suspend fun ajustarVeiculoLocal(veiculoId: String, status: String, hodometro: Int) {
+        if (!::dao.isInitialized) return
+        dao.atualizarStatusVeiculo(veiculoId, status, hodometro)
+        val indice = veiculos.indexOfFirst { it.id == veiculoId }
+        if (indice >= 0) {
+            val atual = veiculos[indice]
+            veiculos[indice] = atual.copy(status = status, hodometroAtual = maxOf(atual.hodometroAtual, hodometro))
+        }
+    }
+
     // Ao sair da conta: limpa a tela e a cópia local, para o próximo usuário não ver
     // a frota de quem saiu.
     suspend fun limpar() {

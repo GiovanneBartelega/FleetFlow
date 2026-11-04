@@ -8,8 +8,11 @@ import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
-    entities = [MovimentacaoEntity::class, VeiculoEntity::class, OrdemServicoEntity::class],
-    version = 2,
+    entities = [
+        MovimentacaoEntity::class, VeiculoEntity::class, OrdemServicoEntity::class,
+        RotaEntity::class, ViagemEntity::class, ItemChecklistEntity::class, OperacaoSyncEntity::class,
+    ],
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -17,6 +20,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun movimentacaoDao(): MovimentacaoDao
 
     abstract fun frotaDao(): FrotaDao
+
+    abstract fun viagemDao(): ViagemDao
+
+    abstract fun filaSyncDao(): FilaSyncDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -50,6 +57,46 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // A 3 cria as tabelas das viagens (entrega de 28/10) e a fila de sincronização
+        // (entrega de 04/11), de novo sem apagar nada. Mesmo cuidado: cada coluna igual à
+        // entidade, sem DEFAULT, porque as entidades não declaram valor padrão.
+        val MIGRACAO_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `rotas` (" +
+                        "`id` TEXT NOT NULL, `nome` TEXT NOT NULL, `origem` TEXT NOT NULL, " +
+                        "`destino` TEXT NOT NULL, `distanciaEstimadaKm` INTEGER NOT NULL, " +
+                        "`salvoEm` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `viagens` (" +
+                        "`id` TEXT NOT NULL, `idServidor` TEXT, `rotaId` TEXT NOT NULL, " +
+                        "`rotaNome` TEXT NOT NULL, `rotaOrigem` TEXT NOT NULL, `rotaDestino` TEXT NOT NULL, " +
+                        "`veiculoId` TEXT NOT NULL, `veiculoPlaca` TEXT NOT NULL, " +
+                        "`veiculoMarca` TEXT NOT NULL, `veiculoModelo` TEXT NOT NULL, " +
+                        "`motoristaId` TEXT NOT NULL, `motoristaNome` TEXT NOT NULL, " +
+                        "`hodometroInicial` INTEGER NOT NULL, `hodometroFinal` INTEGER, " +
+                        "`dataAbertura` TEXT NOT NULL, `dataFechamento` TEXT, `status` TEXT NOT NULL, " +
+                        "`observacao` TEXT, `checklistRespondido` INTEGER NOT NULL, " +
+                        "`checklistLiberado` INTEGER NOT NULL, " +
+                        "`syncVersion` INTEGER NOT NULL, `situacaoSync` TEXT NOT NULL, `erroSync` TEXT, " +
+                        "`salvoEm` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `itens_checklist` (" +
+                        "`id` TEXT NOT NULL, `nome` TEXT NOT NULL, `obrigatorio` INTEGER NOT NULL, " +
+                        "`salvoEm` INTEGER NOT NULL, PRIMARY KEY(`id`))"
+                )
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `fila_sync` (" +
+                        "`seq` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `id` TEXT NOT NULL, " +
+                        "`entidade` TEXT NOT NULL, `registroId` TEXT NOT NULL, `verbo` TEXT NOT NULL, " +
+                        "`payload` TEXT NOT NULL, `tentativas` INTEGER NOT NULL, `ultimoErro` TEXT, " +
+                        "`situacao` TEXT NOT NULL, `criadoEm` INTEGER NOT NULL)"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -57,7 +104,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fleetflow.db"
                 )
-                    .addMigrations(MIGRACAO_1_2)
+                    .addMigrations(MIGRACAO_1_2, MIGRACAO_2_3)
                     .build()
                     .also { INSTANCE = it }
             }

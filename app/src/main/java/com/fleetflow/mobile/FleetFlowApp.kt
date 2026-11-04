@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.LocalShipping
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Route
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -28,8 +29,10 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.platform.LocalContext
 import com.fleetflow.mobile.data.auth.TokenManager
 import androidx.compose.runtime.getValue
@@ -43,6 +46,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.fleetflow.mobile.data.model.UserResponseDto
+import com.fleetflow.mobile.data.repository.ViagemRepository
 import com.fleetflow.mobile.ui.screens.AcessoNegadoScreen
 import com.fleetflow.mobile.ui.screens.*
 import com.fleetflow.mobile.ui.screens.HomeScreen
@@ -121,8 +125,31 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
 
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val pendentes by remember { ViagemRepository.observarPendentes() }.collectAsState(initial = 0)
+    var confirmarSaida by remember { mutableStateOf(false) }
 
     BackHandler(enabled = mostrandoUsuarios || cadastro != null) { mostrandoUsuarios = false; cadastro = null }
+
+    if (confirmarSaida) {
+        AlertDialog(
+            onDismissRequest = { confirmarSaida = false },
+            title = { Text("Sair com alterações pendentes?") },
+            text = {
+                Text(
+                    if (pendentes == 1) "1 alteração ainda não subiu para o servidor e será apagada deste aparelho."
+                    else "$pendentes alterações ainda não subiram para o servidor e serão apagadas deste aparelho."
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmarSaida = false; onLogout() }) {
+                    Text("Sair mesmo assim", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmarSaida = false }) { Text("Cancelar") }
+            },
+        )
+    }
 
     Scaffold(
         bottomBar = {
@@ -189,7 +216,11 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
                         onCategorias = {cadastro="categorias"}, onFormas={cadastro="formas"}, onDividas={cadastro="dividas"},
                         onMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } }
                     )
-                    Screen.PERFIL -> PerfilScreen(user = usuario, onSairClick = onLogout)
+                    // Sair apaga o banco do aparelho; com alteração na fila, confirma antes.
+                    Screen.PERFIL -> PerfilScreen(
+                        user = usuario,
+                        onSairClick = { if (pendentes > 0) confirmarSaida = true else onLogout() },
+                    )
                     Screen.FROTA -> FrotaScreen(
                         podeEditar = podeEditarFrota(perfil),
                         onRotasClick = { cadastro = "rotas" },
@@ -200,8 +231,12 @@ fun FleetFlowApp(usuario: UserResponseDto, onLogout: () -> Unit) {
                         podeEditar = false,
                         mostrarOrdens = false,
                     )
-                    Screen.VIAGENS -> ViagensScreen(
-                        somenteLeitura = perfil == Profile.FINANCEIRO
+                    // Viagens gravadas primeiro no Room e enviadas pela fila de sincronização.
+                    Screen.VIAGENS -> ListaViagensScreen(
+                        usuario = usuario,
+                        podeOperar = perfil != Profile.FINANCEIRO,
+                        podeVerOrdens = podeEditarFrota(perfil),
+                        onMessage = { msg -> scope.launch { snackbarHostState.showSnackbar(msg) } },
                     )
                     else -> GenericPlaceholder(current.label)
                 }
