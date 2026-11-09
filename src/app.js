@@ -12,6 +12,7 @@ import { formasPagamentoRouter } from './routes/formasPagamento.js';
 import { itensChecklistRouter } from './routes/itensChecklist.js';
 import { movimentacoesRouter } from './routes/movimentacoes.js';
 import { ordensServicoRouter } from './routes/ordensServico.js';
+import { relatoriosRouter } from './routes/relatorios.js';
 import { rotasRouter } from './routes/rotas.js';
 import { perfisRouter, usuariosRouter } from './routes/usuarios.js';
 import { veiculosRouter } from './routes/veiculos.js';
@@ -50,6 +51,7 @@ export function createApp({ pool, config, verifyGoogleToken, logger = console })
   app.use('/api/veiculos', auth, veiculosRouter(deps));
   app.use('/api/ordens-servico', auth, ordensServicoRouter(deps));
   app.use('/api/abastecimentos', auth, abastecimentosRouter(deps));
+  app.use('/api/relatorios', auth, relatoriosRouter(deps));
   app.use('/api/rotas', auth, rotasRouter(deps));
   app.use('/api/viagens', auth, viagensRouter(deps));
   app.use('/api/itens-checklist', auth, itensChecklistRouter(deps));

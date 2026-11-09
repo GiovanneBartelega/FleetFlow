@@ -23,6 +23,8 @@ export const PERMISSION_MATRIX = {
   checklist: { Administrador: 'E', GestorFrota: 'E', OperadorMotorista: 'E' },
   // Catálogo de itens do checklist: o motorista só consulta.
   itensChecklist: { Administrador: 'E', GestorFrota: 'E', OperadorMotorista: 'L' },
+  // Relatórios de rentabilidade e custo por km: somente leitura.
+  relatorios: { Administrador: 'L', Financeiro: 'L', GestorFrota: 'L' },
   alertas: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'L' },
 };
 

@@ -7,6 +7,19 @@ const list = (value) =>
     .map((item) => item.trim())
     .filter(Boolean);
 
+// Separado de loadConfig para ferramentas (ex.: conferência) que só precisam do banco
+// e não têm JWT_SECRET.
+export function loadDbConfig(env = process.env) {
+  return {
+    host: env.DB_HOST || '127.0.0.1',
+    port: num(env.DB_PORT, 3306),
+    user: env.DB_USER || 'root',
+    password: env.DB_PASSWORD ?? '',
+    database: env.DB_NAME || 'fleetflow',
+    connectionLimit: num(env.DB_POOL_SIZE, 10),
+  };
+}
+
 export function loadConfig(env = process.env) {
   const nodeEnv = env.NODE_ENV || 'development';
   const jwtSecret = env.JWT_SECRET || '';
@@ -19,14 +32,7 @@ export function loadConfig(env = process.env) {
     nodeEnv,
     port: num(env.PORT, 3000),
     trustProxy: num(env.TRUST_PROXY, 0),
-    db: {
-      host: env.DB_HOST || '127.0.0.1',
-      port: num(env.DB_PORT, 3306),
-      user: env.DB_USER || 'root',
-      password: env.DB_PASSWORD ?? '',
-      database: env.DB_NAME || 'fleetflow',
-      connectionLimit: num(env.DB_POOL_SIZE, 10),
-    },
+    db: loadDbConfig(env),
     jwt: {
       secret: jwtSecret,
       expiresIn: env.JWT_EXPIRES_IN || '8h',
