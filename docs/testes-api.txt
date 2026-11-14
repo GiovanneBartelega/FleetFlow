@@ -1,0 +1,9 @@
+✔ utilitários (1.470314ms)
+ℹ tests 127
+ℹ suites 8
+ℹ pass 127
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 663.411626
