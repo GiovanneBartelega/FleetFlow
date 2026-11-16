@@ -40,10 +40,13 @@ export function dividirScript(texto) {
   return comandos.filter((c) => !/^(CREATE DATABASE|USE)\b/i.test(c));
 }
 
-// Recria o banco de teste do zero: schema + dados iniciais + fixture da conferência.
+// Recria o banco de teste do zero: schema + dados iniciais + fixture da conferência + índices dos
+// relatórios (db/indices-relatorios.sql; `comIndices: false` testa o caminho sem a migração aplicada).
+// `nome` permite um banco próprio por arquivo de teste (node --test roda arquivos em paralelo).
 // Retorna um pool conectado a ele. Falha antes de apagar qualquer coisa se o nome não for *_test.
-export async function prepararBancoTeste({ comFixture = true } = {}) {
-  const nome = nomeBancoTeste();
+export async function prepararBancoTeste({ comFixture = true, comIndices = true, nome: nomeEscolhido } = {}) {
+  const nome = nomeEscolhido ?? nomeBancoTeste();
+  if (!/^[A-Za-z0-9_]+_test$/.test(nome)) throw new Error(`Nome de banco de teste inválido: ${nome}. Precisa terminar em _test.`);
   const base = loadDbConfig();
   const admin = await mysql.createConnection({
     host: base.host, port: base.port, user: base.user, password: base.password, charset: 'utf8mb4',
@@ -69,6 +72,7 @@ export async function prepararBancoTeste({ comFixture = true } = {}) {
   };
   await executar('banco-de-dados versao final.sql');
   if (comFixture) await executar('fixtures/conferencia-seed.sql');
+  if (comIndices) await executar('db/indices-relatorios.sql');
   return { pool, nome };
 }
 

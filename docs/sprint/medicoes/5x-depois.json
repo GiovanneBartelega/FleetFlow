@@ -1,0 +1,231 @@
+{
+  "geradoEm": "2026-11-16T04:03:23.997Z",
+  "banco": "fleetflow5x_perf",
+  "volume": {
+    "movimentacoes": 176192,
+    "abastecimentos": 81631,
+    "viagens": 36236,
+    "veiculos": 400
+  },
+  "periodo": {
+    "inicio": "2025-11-01",
+    "fim": "2026-10-31"
+  },
+  "metaMs": 2000,
+  "indices": [
+    {
+      "tabela": "movimentacoes",
+      "indice": "ix_mov_caixa"
+    },
+    {
+      "tabela": "movimentacoes",
+      "indice": "ix_mov_competencia"
+    },
+    {
+      "tabela": "ordens_servico",
+      "indice": "ix_os_movimentacao"
+    },
+    {
+      "tabela": "viagens",
+      "indice": "ix_viagens_concluidas"
+    },
+    {
+      "tabela": "abastecimentos",
+      "indice": "ix_abast_relatorio"
+    }
+  ],
+  "resultados": [
+    {
+      "nome": "12 meses · rentabilidade · veiculo · caixa",
+      "frioMs": 2347.2136,
+      "p50Ms": 1886.4412000000002,
+      "p95Ms": 2109.9470999999994,
+      "piorMs": 2109.9470999999994,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · custo-km · veiculo · caixa",
+      "frioMs": 1641.0067,
+      "p50Ms": 1570.6906,
+      "p95Ms": 1585.0295000000006,
+      "piorMs": 1585.0295000000006,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · rentabilidade · rota · caixa",
+      "frioMs": 1923.2757000000001,
+      "p50Ms": 1721.1855000000032,
+      "p95Ms": 1762.2105999999985,
+      "piorMs": 1762.2105999999985,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · custo-km · rota · caixa",
+      "frioMs": 1752.5604999999996,
+      "p50Ms": 1786.5324,
+      "p95Ms": 1865.0881000000008,
+      "piorMs": 1865.0881000000008,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · rentabilidade · motorista · caixa",
+      "frioMs": 1743.2294000000002,
+      "p50Ms": 1793.5457999999999,
+      "p95Ms": 1826.0722999999998,
+      "piorMs": 1826.0722999999998,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · custo-km · motorista · caixa",
+      "frioMs": 1770.0787000000055,
+      "p50Ms": 1785.5031000000017,
+      "p95Ms": 1807.0639999999985,
+      "piorMs": 1807.0639999999985,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · rentabilidade · viagem · caixa",
+      "frioMs": 2426.4124999999985,
+      "p50Ms": 2443.9193000000014,
+      "p95Ms": 2498,
+      "piorMs": 2498,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · custo-km · viagem · caixa",
+      "frioMs": 2445.2114,
+      "p50Ms": 2371.017,
+      "p95Ms": 2376.5481999999975,
+      "piorMs": 2376.5481999999975,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · rentabilidade · mes · caixa",
+      "frioMs": 1755.345699999998,
+      "p50Ms": 1620.8751000000047,
+      "p95Ms": 1640.3501999999935,
+      "piorMs": 1640.3501999999935,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · custo-km · mes · caixa",
+      "frioMs": 1613.333099999989,
+      "p50Ms": 1618.289300000004,
+      "p95Ms": 1675.4203999999881,
+      "piorMs": 1675.4203999999881,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · rentabilidade · veiculo · competencia",
+      "frioMs": 1798.8192000000126,
+      "p50Ms": 1577.7056000000011,
+      "p95Ms": 1608.0001000000047,
+      "piorMs": 1608.0001000000047,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · custo-km · veiculo · competencia",
+      "frioMs": 1637.3977000000014,
+      "p50Ms": 1577.7716000000073,
+      "p95Ms": 1594.6877000000095,
+      "piorMs": 1594.6877000000095,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · rentabilidade · rota · competencia",
+      "frioMs": 1768.9349000000075,
+      "p50Ms": 1923.990300000005,
+      "p95Ms": 2003.542499999996,
+      "piorMs": 2003.542499999996,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · custo-km · rota · competencia",
+      "frioMs": 1845.9620999999897,
+      "p50Ms": 1938.2511999999988,
+      "p95Ms": 2015.0859000000055,
+      "piorMs": 2015.0859000000055,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · rentabilidade · motorista · competencia",
+      "frioMs": 1731.036500000002,
+      "p50Ms": 1859.3210000000108,
+      "p95Ms": 1875.2072999999946,
+      "piorMs": 1875.2072999999946,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · custo-km · motorista · competencia",
+      "frioMs": 1915.4676000000036,
+      "p50Ms": 1870.1521000000066,
+      "p95Ms": 1972.601999999999,
+      "piorMs": 1972.601999999999,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · rentabilidade · viagem · competencia",
+      "frioMs": 2497.239699999991,
+      "p50Ms": 2555.3861000000034,
+      "p95Ms": 2819.671100000007,
+      "piorMs": 2819.671100000007,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · custo-km · viagem · competencia",
+      "frioMs": 2573.596000000005,
+      "p50Ms": 2817.705500000011,
+      "p95Ms": 2928.0010000000184,
+      "piorMs": 2928.0010000000184,
+      "dentroDaMeta": false
+    },
+    {
+      "nome": "12 meses · rentabilidade · mes · competencia",
+      "frioMs": 1977.0017999999982,
+      "p50Ms": 1763.4835999999777,
+      "p95Ms": 1767.572599999985,
+      "piorMs": 1767.572599999985,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · custo-km · mes · competencia",
+      "frioMs": 1580.295700000017,
+      "p50Ms": 1609.3686000000162,
+      "p95Ms": 1749.25,
+      "piorMs": 1749.25,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "1 mês · rentabilidade · veiculo · caixa",
+      "frioMs": 159.2503999999899,
+      "p50Ms": 159.41740000000573,
+      "p95Ms": 179.7858000000124,
+      "piorMs": 179.7858000000124,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · 1 veículo · rentabilidade · mes · caixa",
+      "frioMs": 1327.326299999986,
+      "p50Ms": 1635.674399999989,
+      "p95Ms": 1638.3514999999898,
+      "piorMs": 1638.3514999999898,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "1 mês · rentabilidade · veiculo · competencia",
+      "frioMs": 203.01849999997648,
+      "p50Ms": 198.2378000000026,
+      "p95Ms": 200.93779999998515,
+      "piorMs": 200.93779999998515,
+      "dentroDaMeta": true
+    },
+    {
+      "nome": "12 meses · 1 veículo · rentabilidade · mes · competencia",
+      "frioMs": 1551.5924999999988,
+      "p50Ms": 1372.2595999999903,
+      "p95Ms": 1589.468200000003,
+      "piorMs": 1589.468200000003,
+      "dentroDaMeta": true
+    }
+  ]
+}

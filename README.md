@@ -33,6 +33,14 @@ GRANT SELECT, INSERT, UPDATE ON fleetflow.* TO 'fleetflow_api'@'%';
 3. Gere o segredo do JWT:
    `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`.
 
+## Desempenho dos relatórios
+
+Meta: relatórios de 12 meses respondendo em menos de 2 s. Em cada ambiente rode uma vez `npm run perf:indices`
+(cria os índices de `db/indices-relatorios.sql`; idempotente). Para gerar 12 meses de dados e medir:
+`npm run massa` e `npm run massa:medir` (usam um banco `*_perf`, nunca o `fleetflow`). Detalhes e resultados em
+[docs/sprint/entrega-luis-sql-agregado-indices.md](docs/sprint/entrega-luis-sql-agregado-indices.md) e
+[docs/sprint/entrega-gabriel-massa-12-meses.md](docs/sprint/entrega-gabriel-massa-12-meses.md).
+
 ## Login com Google
 
 1. No Google Cloud, crie um **Web Client ID** e coloque em `GOOGLE_CLIENT_IDS`.

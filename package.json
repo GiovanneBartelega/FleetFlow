@@ -10,7 +10,11 @@
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
     "test": "node --test \"test/**/*.test.js\"",
-    "conferencia": "node src/conferencia/cli.js"
+    "conferencia": "node src/conferencia/cli.js",
+    "massa": "node scripts/massa/gerar-massa.js",
+    "massa:medir": "node scripts/massa/medir.js",
+    "perf:indices": "node scripts/perf/aplicar-indices.js",
+    "perf:explain": "node scripts/perf/explain.js"
   },
   "dependencies": {
     "cors": "^2.8.6",
