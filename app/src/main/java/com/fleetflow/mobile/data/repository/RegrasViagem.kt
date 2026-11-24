@@ -1,20 +1,30 @@
 package com.fleetflow.mobile.data.repository
 
+// Regras do hodômetro (especificação, "Validações e mensagens"). Funções puras, sem
+// Android, para o teste unitário rodar sem emulador.
 object RegrasViagem {
-    fun ultimoHodometro(hodometroVeiculo: Int, registros: List<Int>): Int =
-        (registros + hodometroVeiculo).maxOrNull() ?: hodometroVeiculo
 
-    fun erroHodometroInicial(valor: Int?, ultimo: Int): String? = when {
-        valor == null -> "Informe o hodômetro inicial"
-        valor < ultimo -> "O hodômetro não pode ser menor que o último registrado ($ultimo km)"
+    // Acima disso o app pede confirmação, mas não bloqueia.
+    const val LIMITE_KM_ALTO = 3000
+
+    fun erroHodometroInicial(informado: Int?, ultimoDoVeiculo: Int): String? = when {
+        informado == null -> "Campo obrigatório"
+        informado < ultimoDoVeiculo -> "O hodômetro informado é menor que o último registrado"
         else -> null
     }
 
-    fun erroHodometroFinal(inicial: Int, final: Int?): String? = when {
-        final == null -> "Informe o hodômetro final"
-        final < inicial -> "O hodômetro final não pode ser menor que o inicial"
+    fun erroHodometroFinal(inicial: Int, hodometroFinal: Int?): String? = when {
+        hodometroFinal == null -> "Campo obrigatório"
+        hodometroFinal <= inicial -> "O hodômetro final precisa ser maior que o inicial"
         else -> null
     }
 
-    fun kmRodados(inicial: Int, final: Int): Int = final - inicial
+    // O maior hodômetro conhecido do veículo: o da frota ou o de uma viagem do aparelho que
+    // a frota ainda não recebeu (fechada sem internet, por exemplo).
+    fun ultimoHodometro(daFrota: Int, dasViagens: List<Int>): Int = maxOf(daFrota, dasViagens.maxOrNull() ?: daFrota)
+
+    fun kmRodados(inicial: Int, hodometroFinal: Int): Int = hodometroFinal - inicial
+
+    fun quilometragemAlta(inicial: Int, hodometroFinal: Int): Boolean =
+        kmRodados(inicial, hodometroFinal) > LIMITE_KM_ALTO
 }

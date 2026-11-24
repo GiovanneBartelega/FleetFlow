@@ -26,11 +26,13 @@ abstract class FrotaDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     abstract suspend fun inserirOrdens(itens: List<OrdemServicoEntity>)
 
-    @Query("UPDATE veiculos SET status = :status, hodometroAtual = :hodometro, salvoEm = :salvoEm WHERE id = :id")
-    abstract suspend fun atualizarSituacaoLocal(id: String, status: String, hodometro: Int, salvoEm: Long)
-
     @Query("DELETE FROM veiculos")
     abstract suspend fun limparVeiculos()
+
+    // Viagem aberta ou fechada no aparelho: o veículo muda aqui antes de a API saber.
+    // O hodômetro nunca anda para trás.
+    @Query("UPDATE veiculos SET status = :status, hodometroAtual = MAX(hodometroAtual, :hodometro) WHERE id = :id")
+    abstract suspend fun atualizarStatusVeiculo(id: String, status: String, hodometro: Int)
 
     @Query("DELETE FROM ordens_servico")
     abstract suspend fun limparOrdens()

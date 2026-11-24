@@ -11,9 +11,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
     entities = [
         MovimentacaoEntity::class, VeiculoEntity::class, OrdemServicoEntity::class,
         RotaEntity::class, ViagemEntity::class, ItemChecklistEntity::class, OperacaoSyncEntity::class,
-        AvisoSyncEntity::class,
+        AvisoSyncEntity::class, CachePainelEntity::class, DashboardHistoricoEntity::class,
     ],
-    version = 5,
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +27,10 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun filaSyncDao(): FilaSyncDao
 
     abstract fun avisoSyncDao(): AvisoSyncDao
+
+    abstract fun cachePainelDao(): CachePainelDao
+
+    abstract fun dashboardHistoricoDao(): DashboardHistoricoDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null
@@ -121,6 +125,30 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        // A 6 cria o cache local dos painéis da home e de BI (entrega de 18/11).
+        val MIGRACAO_5_6 = object : Migration(5, 6) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `cache_paineis` (" +
+                        "`chave` TEXT NOT NULL, `json` TEXT NOT NULL, `salvoEm` INTEGER NOT NULL, " +
+                        "PRIMARY KEY(`chave`))"
+                )
+            }
+        }
+
+        // A 7 guarda a série do gráfico da Home por período. A tabela de cache genérico
+        // da versão 6 continua existindo para os demais painéis.
+        val MIGRACAO_6_7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "CREATE TABLE IF NOT EXISTS `dashboard_historico` (" +
+                        "`chave` TEXT NOT NULL, `periodo` TEXT NOT NULL, `rotulo` TEXT NOT NULL, " +
+                        "`receita` REAL NOT NULL, `despesa` REAL NOT NULL, `inicio` TEXT NOT NULL, " +
+                        "`fim` TEXT NOT NULL, `salvoEm` INTEGER NOT NULL, PRIMARY KEY(`chave`))"
+                )
+            }
+        }
+
         fun get(context: Context): AppDatabase =
             INSTANCE ?: synchronized(this) {
                 INSTANCE ?: Room.databaseBuilder(
@@ -128,7 +156,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "fleetflow.db"
                 )
-                    .addMigrations(MIGRACAO_1_2, MIGRACAO_2_3, MIGRACAO_3_5, MIGRACAO_4_5)
+                    .addMigrations(MIGRACAO_1_2, MIGRACAO_2_3, MIGRACAO_3_5, MIGRACAO_4_5, MIGRACAO_5_6, MIGRACAO_6_7)
                     .build()
                     .also { INSTANCE = it }
             }

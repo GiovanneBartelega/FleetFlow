@@ -16,6 +16,12 @@ interface FinanceApi {
     @DELETE("api/formas-pagamento/{id}") suspend fun removerForma(@Path("id") id:String):Response<Unit>
     @GET("api/movimentacoes") suspend fun movimentacoes(@QueryMap query:Map<String,String>):Response<MovPageDto>
     @GET("api/movimentacoes/saldo") suspend fun saldo():Response<SaldoDto>
+    @GET("api/indicadores/kpis") suspend fun kpis(@QueryMap query: Map<String, String>): Response<KpisDto>
+    @GET("api/indicadores/fluxo-caixa") suspend fun fluxoCaixa(@QueryMap query: Map<String, String>): Response<FluxoCaixaDto>
+    @GET("api/indicadores/despesas-por-categoria") suspend fun despesasPorCategoria(@QueryMap query: Map<String, String>): Response<DespesasCategoriaDto>
+    @GET("api/indicadores/rankings") suspend fun rankings(@QueryMap query: Map<String, String>): Response<RankingsDto>
+    @GET("api/indicadores/previsao-caixa") suspend fun previsaoCaixa(@QueryMap query: Map<String, String>): Response<PrevisaoCaixaDto>
+    @GET("api/indicadores/alertas-saldo") suspend fun alertasSaldo(@QueryMap query: Map<String, String>): Response<AlertasSaldoDto>
     @POST("api/movimentacoes") suspend fun criar(@Body body:MovRequestDto):Response<MovDto>
     @PATCH("api/movimentacoes/{id}") suspend fun editar(@Path("id") id:String,@Body body:MovRequestDto):Response<MovDto>
     @DELETE("api/movimentacoes/{id}") suspend fun remover(@Path("id") id:String):Response<Unit>

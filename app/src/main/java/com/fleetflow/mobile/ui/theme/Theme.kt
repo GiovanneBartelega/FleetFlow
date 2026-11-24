@@ -1,6 +1,5 @@
 package com.fleetflow.mobile.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -11,31 +10,50 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 
-private val DarkColorScheme = darkColorScheme(
-    primary = AmbarDourado,
-    secondary = Petroleo,
-    tertiary = VerdeEsmeralda,
-    background = Petroleo,
-    surface = Petroleo
-)
-
 private val LightColorScheme = lightColorScheme(
     primary = Petroleo,
-    secondary = AmbarDourado,
-    tertiary = VerdeEsmeralda,
-    background = BackgroundTela,
-    surface = SuperficieCard,
     onPrimary = Branco,
-    onSecondary = Petroleo,
+    secondary = AmbarDourado,
+    onSecondary = TextoPrincipal,   // texto sobre laranja é escuro, nunca branco
+    tertiary = VerdeEsmeralda,
+    onTertiary = Branco,
+    // Sem isso, o container do terciário fica no rosa padrão do Material 3 (card de
+    // receitas do detalhe da viagem, por exemplo). Entradas são verdes.
+    tertiaryContainer = VerdeSuave,
+    onTertiaryContainer = TextoPrincipal,
+    error = Vermelho,
+    onError = Branco,
+    background = BackgroundTela,
     onBackground = TextoPrincipal,
-    onSurface = TextoPrincipal
+    surface = SuperficieCard,
+    onSurface = TextoPrincipal,
+    surfaceVariant = CinzaSuave,
+    onSurfaceVariant = TextoSecundario,
+    outline = Contorno,
+)
+
+private val DarkColorScheme = darkColorScheme(
+    primary = AzulPrimarioEscuro,
+    onPrimary = Branco,
+    secondary = AmbarDourado,
+    onSecondary = TextoPrincipal,
+    tertiary = VerdeEscuro,
+    tertiaryContainer = VerdeContainerEscuro,
+    onTertiaryContainer = TextoEscuro,
+    error = ErroEscuro,
+    background = FundoEscuro,
+    onBackground = TextoEscuro,
+    surface = SuperficieEscura,
+    onSurface = TextoEscuro,
+    surfaceVariant = SuperficieVariantEscura,
+    onSurfaceVariant = TextoSecundarioEscuro,
+    outline = ContornoEscuro,
 )
 
 @Composable
 fun FleetFlowTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Desligado: o FleetFlow tem cor de marca própria e não deve
-    // seguir o papel de parede do usuário (recurso do Android 12+)
+    // Desligado: o FleetFlow tem cor de marca própria e não segue o papel de parede (Android 12+)
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
@@ -44,7 +62,6 @@ fun FleetFlowTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }

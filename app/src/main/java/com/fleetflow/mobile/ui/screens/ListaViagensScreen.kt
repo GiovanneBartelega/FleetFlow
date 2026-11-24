@@ -68,11 +68,12 @@ import com.fleetflow.mobile.ui.components.EmptyState
 import com.fleetflow.mobile.ui.theme.AmbarAlerta
 import kotlinx.coroutines.launch
 
-private enum class TelaViagem { LISTA, ABRIR, CHECKLIST, FECHAR, PENDENCIAS }
+private enum class TelaViagem { LISTA, ABRIR, CHECKLIST, FECHAR, PENDENCIAS, DETALHE }
 
 // Aba Viagens: lista do Room (online e offline são iguais para a tela), abrir, checklist,
-// fechar e, desde 11/11, a tela de pendências de sincronização. A ViagensScreen do Douglas
-// (lista da API com o detalhe e os lançamentos da viagem) ainda não tem entrada na navegação.
+// fechar, desde 11/11 a tela de pendências de sincronização e, desde 18/11, o detalhe da
+// viagem com os lançamentos (DetalheViagemScreen, do Douglas). A ViagensScreen do Douglas
+// (lista da API) continua sem entrada na navegação.
 @Composable
 fun ListaViagensScreen(
     usuario: UserResponseDto,
@@ -106,6 +107,9 @@ fun ListaViagensScreen(
     BackHandler(enabled = tela != TelaViagem.LISTA) { tela = TelaViagem.LISTA }
 
     val selecionada = viagemSelecionada
+    // O detalhe lê a viagem do Room a cada mudança: quando a abertura sobe para a API e a
+    // viagem ganha o id do servidor, os lançamentos aparecem sem precisar sair da tela.
+    val detalhe = selecionada?.let { id -> viagens.firstOrNull { it.id == id } }
     when {
         tela == TelaViagem.ABRIR -> AbrirViagemScreen(
             usuario = usuario,
@@ -132,6 +136,10 @@ fun ListaViagensScreen(
             podeOperar = podeOperar,
             onVoltar = { tela = TelaViagem.LISTA },
         )
+        tela == TelaViagem.DETALHE && detalhe != null -> DetalheViagemScreen(
+            viagem = detalhe,
+            onVoltar = { tela = TelaViagem.LISTA },
+        )
         tela == TelaViagem.FECHAR && selecionada != null -> FecharViagemScreen(
             viagemId = selecionada,
             onVoltar = { tela = TelaViagem.LISTA },
@@ -155,6 +163,10 @@ fun ListaViagensScreen(
             onAba = { aba = it },
             onAtualizar = { scope.launch { atualizarTudo() } },
             onAbrir = { tela = TelaViagem.ABRIR },
+            onDetalhes = { viagem ->
+                viagemSelecionada = viagem.id
+                tela = TelaViagem.DETALHE
+            },
             onChecklist = { viagem ->
                 viagemSelecionada = viagem.id
                 depoisDoChecklist = TelaViagem.LISTA
@@ -214,6 +226,7 @@ private fun ListaViagens(
     onAba: (Int) -> Unit,
     onAtualizar: () -> Unit,
     onAbrir: () -> Unit,
+    onDetalhes: (ViagemEntity) -> Unit,
     onChecklist: (ViagemEntity) -> Unit,
     onFechar: (ViagemEntity) -> Unit,
     onTentarDeNovo: (ViagemEntity) -> Unit,
@@ -303,6 +316,7 @@ private fun ListaViagens(
                     CartaoViagemOffline(
                         viagem = viagem,
                         podeOperar = podeOperar,
+                        onDetalhes = { onDetalhes(viagem) },
                         onChecklist = { onChecklist(viagem) },
                         onFechar = { onFechar(viagem) },
                         onTentarDeNovo = { onTentarDeNovo(viagem) },
@@ -322,6 +336,7 @@ private fun CartaoViagemOffline(
     onFechar: () -> Unit,
     onTentarDeNovo: () -> Unit,
     onDescartar: () -> Unit,
+    onDetalhes: () -> Unit,
 ) {
     val aberta = viagem.status == StatusViagem.ABERTA
     val comErro = precisaAtencao(viagem)
@@ -357,7 +372,14 @@ private fun CartaoViagemOffline(
             Text(linhaDatas, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             SeloSincronizacao(viagem)
-
+            TextButton(
+                onClick = onDetalhes,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = 48.dp)
+            ) {
+                Text("Ver detalhes")
+            }
             val checklistOk = viagem.checklistRespondido && viagem.checklistLiberado
             if (aberta && !checklistOk) {
                 Text(

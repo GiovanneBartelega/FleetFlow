@@ -19,3 +19,30 @@ test('relatórios validam período e respeitam as permissões', async () => {
     assert.equal(proibido.status, 403);
   } finally { await app.close(); }
 });
+
+test('relatórios financeiro e logístico expõem contratos tabulares para PDF e CSV', async () => {
+  const admin = makeUser({ id: '33333333-3333-4333-8333-333333333333', perfil: 'Administrador' });
+  const app = await startServer({ pool: makeFakePool({ users: [admin] }) });
+  try {
+    const financeiro = await app.request(
+      'GET',
+      '/api/relatorios/financeiro?inicio=2026-11-01&fim=2026-11-30',
+      { token: tokenFor(admin.Id) },
+    );
+    assert.equal(financeiro.status, 200);
+    assert.deepEqual(financeiro.body.totais, { transacoes: 0, receitas: 0, despesas: 0, resultado: 0 });
+    assert.deepEqual(financeiro.body.transacoes, []);
+    assert.deepEqual(financeiro.body.resumoPorCategoria, []);
+
+    const logistico = await app.request(
+      'GET',
+      '/api/relatorios/logistico?inicio=2026-11-01&fim=2026-11-30',
+      { token: tokenFor(admin.Id) },
+    );
+    assert.equal(logistico.status, 200);
+    assert.deepEqual(logistico.body.linhas, []);
+    assert.equal(logistico.body.totais.viagens, 0);
+    assert.equal(logistico.body.totais.custoPorKm, null);
+    assert.equal(logistico.body.totais.consumoMedio, null);
+  } finally { await app.close(); }
+});

@@ -21,6 +21,7 @@ import { checklistsViagemRouter } from './routes/checklistsViagem.js';
 import { abastecimentosRouter } from './routes/abastecimentos.js';
 import { alertasRouter } from './routes/alertas.js';
 import { relatoriosRouter } from './routes/relatorios.js';
+import { indicadoresRouter } from './routes/indicadores.js';
 
 // `pool` e `verifyGoogleToken` são injetados para a API poder ser testada
 // sem MySQL e sem chamar o Google.
@@ -60,6 +61,7 @@ export function createApp({ pool, config, verifyGoogleToken, logger = console })
   app.use('/api/abastecimentos', auth, abastecimentosRouter(deps));
   app.use('/api/alertas', auth, alertasRouter(deps));
   app.use('/api/relatorios', auth, relatoriosRouter(deps));
+  app.use('/api/indicadores', auth, indicadoresRouter(deps));
   app.use('/api/itens-checklist', auth, itensChecklistRouter(deps));
   app.use('/api/checklists-viagem', auth, checklistsViagemRouter(deps));
   app.get('/openapi.json', (req,res)=>res.json(JSON.parse(readFileSync(new URL('../docs/openapi.json',import.meta.url)))));

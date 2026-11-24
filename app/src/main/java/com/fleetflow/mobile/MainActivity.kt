@@ -29,6 +29,7 @@ import com.fleetflow.mobile.data.repository.ApiException
 import com.fleetflow.mobile.data.repository.AuthRepository
 import com.fleetflow.mobile.data.repository.FinanceRepository
 import com.fleetflow.mobile.data.repository.FrotaRepository
+import com.fleetflow.mobile.data.repository.PainelRepository
 import com.fleetflow.mobile.data.repository.RotasRepository
 import com.fleetflow.mobile.data.repository.ViagemRepository
 import com.fleetflow.mobile.data.repository.ViagensRepository
@@ -74,6 +75,8 @@ class MainActivity : ComponentActivity() {
         ViagemRepository.init(applicationContext)
         ViagensRepository.init(applicationContext)
         RotasRepository.init(applicationContext)
+        // Cache local dos painéis da home e de BI (entrega de 18/11).
+        PainelRepository.init(applicationContext)
         Conectividade.iniciar(applicationContext)
         // Fila de sincronização: tenta agora e, depois, a cada 15 minutos quando houver rede.
         SyncScheduler.agendarPeriodico(applicationContext)
@@ -90,11 +93,16 @@ class MainActivity : ComponentActivity() {
 
                 fun entrar(user: UserResponseDto) {
                     usuario = user
+                    PainelRepository.usarConta(user.id)
                     telaAtual = telaPara(user)
                 }
 
                 fun sair() {
                     scope.launch {
+                        // Primeiro o cache dos painéis, que é só local: os números financeiros
+                        // saem do aparelho mesmo que o logout na API demore ou falhe.
+                        PainelRepository.limpar()
+                        FinanceRepository.limparHistoricoDashboard()
                         authRepository.logout()
                         FrotaRepository.limpar()
                         ViagemRepository.limpar()
@@ -117,12 +125,16 @@ class MainActivity : ComponentActivity() {
                     val user = resultado.getOrNull()
                     val erro = resultado.exceptionOrNull()
                     telaAtual = when {
-                        user != null -> { usuario = user; telaPara(user) }
+                        user != null -> { usuario = user; PainelRepository.usarConta(user.id); telaPara(user) }
                         // Sem conexão: entra com o usuário salvo no último acesso, para o
                         // motorista conseguir usar o app sem sinal.
                         erro is IOException -> {
                             val salvo = authRepository.getUsuarioSalvo()
-                            if (salvo != null && salvo.status == "Ativo") { usuario = salvo; Tela.App } else Tela.Login
+                            if (salvo != null && salvo.status == "Ativo") {
+                                usuario = salvo
+                                PainelRepository.usarConta(salvo.id)
+                                Tela.App
+                            } else Tela.Login
                         }
                         erro is ApiException && erro.code == "ACCOUNT_PENDING" -> Tela.Aguardando
                         erro is ApiException && (erro.code == "ACCOUNT_BLOCKED" || erro.code == "ACCOUNT_DISABLED") -> Tela.ContaBloqueada

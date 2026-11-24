@@ -103,3 +103,150 @@ export async function gerarRelatorio(pool, filtros) {
   const total = [...grupos.values()].reduce((acc, item) => ({ ...acc, receita: acc.receita + item.receita, despesa: acc.despesa + item.despesa, custoVariavel: acc.custoVariavel + item.custoVariavel, kmRodados: acc.kmRodados + item.kmRodados, litros: acc.litros + item.litros, valorCombustivel: acc.valorCombustivel + item.valorCombustivel, viagens: acc.viagens + item.viagens, viagensSemKm: acc.viagensSemKm + item.viagensSemKm }), grupo(null));
   return { parametros: filtros, grupos: lista, totais: { viagens: total.viagens, viagensSemKm: total.viagensSemKm, ...calcularIndicadoresViagem(total) } };
 }
+
+// Dados tabulares para o PDF/CSV financeiro. Mantém os nomes previsíveis para
+// os consumidores externos, em vez de fazê-los reconstruir as informações da
+// listagem paginada de movimentações.
+export async function gerarRelatorioFinanceiro(pool, filtros) {
+  const data = dataRegime(filtros.regime);
+  const where = ['m.Ativo = 1', data.status, periodo(data.coluna)];
+  const params = [filtros.inicio, filtros.fim];
+  const adicionar = (condicao, valor) => {
+    if (valor) { where.push(condicao); params.push(valor); }
+  };
+  adicionar('m.Status = ?', filtros.status);
+  adicionar('m.CategoriaId = ?', filtros.categoriaId);
+  adicionar('m.FormaPagamentoId = ?', filtros.formaPagamentoId);
+  adicionar('COALESCE(m.VeiculoId, v.VeiculoId, d.VeiculoId) = ?', filtros.veiculoId);
+  adicionar('v.RotaId = ?', filtros.rotaId);
+  adicionar('v.MotoristaId = ?', filtros.motoristaId);
+  const clausula = where.join(' AND ');
+  const de = `FROM movimentacoes m
+    JOIN categorias c ON c.Id = m.CategoriaId
+    JOIN formas_pagamento f ON f.Id = m.FormaPagamentoId
+    LEFT JOIN viagens v ON v.Id = m.ViagemId
+    LEFT JOIN dividas d ON d.Id = m.DividaId`;
+
+  const [transacoes] = await pool.query(
+    `SELECT m.Id, ${data.coluna} AS Data, m.Descricao, c.Titulo AS Categoria,
+            c.Tipo AS Tipo, f.Nome AS FormaPagamento, m.Valor, m.Status
+       ${de} WHERE ${clausula}
+       ORDER BY ${data.coluna} ASC, m.CriadoEm ASC`,
+    params,
+  );
+  const [resumo] = await pool.query(
+    `SELECT m.CategoriaId, c.Titulo AS Categoria, c.Tipo AS Tipo,
+            COUNT(*) AS Quantidade, SUM(m.Valor) AS Valor
+       ${de} WHERE ${clausula}
+       GROUP BY m.CategoriaId, c.Titulo, c.Tipo
+       ORDER BY c.Tipo, c.Titulo`,
+    params,
+  );
+  const linhas = transacoes.map((row) => ({
+    id: row.Id,
+    data: row.Data,
+    descricao: row.Descricao,
+    categoria: row.Categoria,
+    tipo: row.Tipo,
+    formaPagamento: row.FormaPagamento,
+    valor: num(row.Valor),
+    status: row.Status,
+  }));
+  const resumoPorCategoria = resumo.map((row) => ({
+    categoriaId: row.CategoriaId,
+    categoria: row.Categoria,
+    tipo: row.Tipo,
+    quantidade: num(row.Quantidade),
+    valor: num(row.Valor),
+  }));
+  const totais = linhas.reduce((acc, linha) => {
+    if (linha.tipo === 'Entrada') acc.receitas += linha.valor;
+    else acc.despesas += linha.valor;
+    return acc;
+  }, { transacoes: linhas.length, receitas: 0, despesas: 0 });
+  return {
+    parametros: filtros,
+    totais: { ...totais, resultado: totais.receitas - totais.despesas },
+    transacoes: linhas,
+    resumoPorCategoria,
+  };
+}
+
+// Uma linha por viagem fechada, já com os indicadores solicitados pelo
+// relatório logístico. O PDF/CSV não precisa inferir dados a partir de grupos.
+export async function gerarRelatorioLogistico(pool, filtros) {
+  const data = dataRegime(filtros.regime);
+  const { where, params } = filtrosDaViagem(filtros);
+  const [rows] = await pool.query(
+    `WITH financeiro AS (
+       SELECT m.ViagemId,
+              SUM(CASE WHEN c.Tipo = 'Entrada' THEN m.Valor ELSE 0 END) AS Receitas,
+              SUM(CASE WHEN c.Tipo = 'Saida' THEN m.Valor ELSE 0 END) AS Despesas
+         FROM movimentacoes m
+         JOIN categorias c ON c.Id = m.CategoriaId AND c.Ativo = 1
+        WHERE m.Ativo = 1 AND m.ViagemId IS NOT NULL
+          AND ${data.status} AND ${periodo(data.coluna)}
+        GROUP BY m.ViagemId
+     ), combustivel AS (
+       SELECT a.ViagemId, SUM(a.Litros) AS Litros
+         FROM abastecimentos a
+         JOIN movimentacoes m ON m.Id = a.MovimentacaoId
+        WHERE a.Ativo = 1 AND a.ViagemId IS NOT NULL
+          AND m.Ativo = 1 AND ${data.status} AND ${periodo(data.coluna)}
+        GROUP BY a.ViagemId
+     )
+     SELECT v.Id, v.DataFechamento, r.Nome AS Rota, ve.Placa AS Veiculo,
+            u.Nome AS Motorista, (v.HodometroFinal - v.HodometroInicial) AS KmRodados,
+            COALESCE(financeiro.Receitas, 0) AS Receitas,
+            COALESCE(financeiro.Despesas, 0) AS Despesas,
+            COALESCE(combustivel.Litros, 0) AS Litros
+       FROM viagens v
+       JOIN rotas r ON r.Id = v.RotaId
+       JOIN veiculos ve ON ve.Id = v.VeiculoId
+       JOIN usuarios u ON u.Id = v.MotoristaId
+       LEFT JOIN financeiro ON financeiro.ViagemId = v.Id
+       LEFT JOIN combustivel ON combustivel.ViagemId = v.Id
+      WHERE v.Ativo = 1 AND v.Status = 'Encerrada'
+        AND ${periodo('v.DataFechamento')}
+        ${where.map((condicao) => `AND ${condicao}`).join(' ')}
+      ORDER BY v.DataFechamento ASC, v.Id ASC`,
+    [filtros.inicio, filtros.fim, filtros.inicio, filtros.fim, filtros.inicio, filtros.fim, ...params],
+  );
+  const linhas = rows.map((row) => {
+    const kmRodados = num(row.KmRodados);
+    const receitas = num(row.Receitas);
+    const despesas = num(row.Despesas);
+    const litros = num(row.Litros);
+    return {
+      id: row.Id,
+      data: row.DataFechamento,
+      rota: row.Rota,
+      veiculo: row.Veiculo,
+      motorista: row.Motorista,
+      kmRodados,
+      receitas,
+      despesas,
+      resultado: receitas - despesas,
+      custoPorKm: kmRodados > 0 ? despesas / kmRodados : null,
+      litros,
+      consumoMedio: litros > 0 ? kmRodados / litros : null,
+    };
+  });
+  const totais = linhas.reduce((acc, linha) => ({
+    viagens: acc.viagens + 1,
+    kmRodados: acc.kmRodados + linha.kmRodados,
+    receitas: acc.receitas + linha.receitas,
+    despesas: acc.despesas + linha.despesas,
+    litros: acc.litros + linha.litros,
+  }), { viagens: 0, kmRodados: 0, receitas: 0, despesas: 0, litros: 0 });
+  return {
+    parametros: filtros,
+    linhas,
+    totais: {
+      ...totais,
+      resultado: totais.receitas - totais.despesas,
+      custoPorKm: totais.kmRodados > 0 ? totais.despesas / totais.kmRodados : null,
+      consumoMedio: totais.litros > 0 ? totais.kmRodados / totais.litros : null,
+    },
+  };
+}

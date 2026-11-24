@@ -52,6 +52,44 @@ data class SaldoDto(
     val aPagar: String
 )
 
+data class KpisDto(
+    val inicio: String, val fim: String, val receitas: Double, val despesas: Double,
+    val resultado: Double, val margemPercentual: Double?
+)
+
+data class FluxoMesDto(
+    val mes: String, val receitas: Double, val despesas: Double,
+    val resultado: Double, val saldoAcumulado: Double
+)
+
+data class FluxoCaixaDto(val inicio: String, val fim: String, val meses: List<FluxoMesDto>)
+
+data class DespesaCategoriaDto(
+    val categoriaId: String, val categoria: String, val valor: Double, val percentual: Double
+)
+
+data class DespesasCategoriaDto(val inicio: String, val fim: String, val total: Double, val categorias: List<DespesaCategoriaDto>)
+
+data class RankingVeiculoDto(
+    val veiculoId: String, val placa: String, val receitas: Double,
+    val despesas: Double, val resultado: Double
+)
+
+data class RankingsDto(
+    val inicio: String, val fim: String, val maisRentaveis: List<RankingVeiculoDto>,
+    val maioresDespesas: List<RankingVeiculoDto>
+)
+
+data class PrevisaoMesDto(
+    val mes: String, val entradas: Double, val saidas: Double,
+    val resultado: Double, val saldoProjetado: Double
+)
+
+data class PrevisaoCaixaDto(val inicio: String, val meses: Int, val saldoInicial: Double, val previsao: List<PrevisaoMesDto>)
+
+data class AlertaSaldoDto(val tipo: String, val mes: String, val saldoProjetado: Double, val mensagem: String)
+data class AlertasSaldoDto(val inicio: String, val meses: Int, val alertas: List<AlertaSaldoDto>)
+
 data class MovRequestDto(
     val valor: String,
     val descricao: String,

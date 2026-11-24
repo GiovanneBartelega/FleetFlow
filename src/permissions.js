@@ -24,6 +24,7 @@ export const PERMISSION_MATRIX = {
   itensChecklist: { Administrador: 'E', GestorFrota: 'E', OperadorMotorista: 'L' },
   alertas: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'E', OperadorMotorista: 'L' },
   relatorios: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'L' },
+  indicadores: { Administrador: 'E', Financeiro: 'L', GestorFrota: 'L' },
 };
 
 export function levelFor(perfil, modulo) {
